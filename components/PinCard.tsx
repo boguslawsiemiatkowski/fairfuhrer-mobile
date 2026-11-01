@@ -5,7 +5,7 @@ import Svg, { Path, Circle } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
-import { CategoryIcon, CATEGORY_COLORS } from "./CategoryIcon";
+import { CategoryIcon, categoryColorFor } from "./CategoryIcon";
 import { getImageUrl, getCategoriesFromPlace } from "@/utils/placeHelpers";
 
 const DEFAULT_LOCK_COLOR = "#fc6c14";
@@ -70,10 +70,9 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
                 style={[
                   styles.lockBadge,
                   {
-                    backgroundColor:
-                      (categories[0] &&
-                        (categories[0].Farbe ?? CATEGORY_COLORS[categories[0].id])) ||
-                      DEFAULT_LOCK_COLOR,
+                    backgroundColor: categories[0]
+                      ? categoryColorFor(categories[0])
+                      : DEFAULT_LOCK_COLOR,
                   },
                 ]}
               >
@@ -82,10 +81,7 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
                     <CategoryIcon
                       categoryId={categories[0].id}
                       color="#fff"
-                      strokeColor={
-                        (categories[0].Farbe ?? CATEGORY_COLORS[categories[0].id]) ||
-                        DEFAULT_LOCK_COLOR
-                      }
+                      strokeColor={categoryColorFor(categories[0])}
                       size={36}
                     />
                   </View>
@@ -103,7 +99,7 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
                   <CategoryIcon
                     key={cat.id}
                     categoryId={cat.id}
-                    color={cat.Farbe ?? "#666"}
+                    color={categoryColorFor(cat)}
                     size={40}
                   />
                 ))}

@@ -60,22 +60,25 @@ const DEFAULTS = {
   reg_success_text: "Bitte prüfe deine E-Mails und bestätige deine Registrierung.",
   back_btn: "← Zurück",
   plans_free_title: "Kostenlos",
+  // Die Zeilen zu „50 % / 100 % der Pins in Sehenswertes" sind entfallen:
+  // alle Audiopins sind für jeden frei. Offline-Karten sind die
+  // Gegenleistung für FAIRFÜHRER+. Texte kommen aus Directus, das hier
+  // sind die Rückfalltexte — dort nachziehen.
   plans_free_features: [
     { text: "Audio-Guides zu allen Orten anhören" },
+    { text: "Alle Audiopins, auch „Sehenswertes“" },
     { text: "Alle Kategorien entdecken (Gastronomie, Einkaufen, Engagement …)" },
-    { text: "50 % der Pins in „Sehenswertes“" },
     { text: "Karte & Ortsuche" },
-    { text: "100 % der Pins in „Sehenswertes“", locked: true },
     { text: "Offline-Karten", locked: true },
     { text: "Orte vorschlagen & Pins erstellen", locked: true },
   ] as Feature[],
   plans_premium_title: "FAIRFÜHRER+",
   plans_premium_features: [
     { text: "Alles aus der kostenlosen Version" },
-    { text: "100 % der Pins in „Sehenswertes“" },
     { text: "Offline-Karten für unterwegs" },
     { text: "Neue Orte vorschlagen & eigene Pins erstellen" },
     { text: "Pins werden von unseren Redakteuren geprüft" },
+    { text: "Du hältst den Fairführer frei und unabhängig" },
   ] as Feature[],
   returning_headline: "Schon FAIRFÜHRER+ gekauft?",
   returning_text:

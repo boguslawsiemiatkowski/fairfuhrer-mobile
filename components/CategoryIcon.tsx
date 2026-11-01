@@ -1,13 +1,51 @@
 import React from "react";
 import Svg, { Circle, G, Path } from "react-native-svg";
 
+/**
+ * Rückfall-Farben, falls Directus keine Farbe liefert. Maßgeblich ist immer
+ * `Kategorie.Farbe` aus Directus — diese Werte greifen nur, wenn die
+ * Kollektion nicht erreichbar ist.
+ */
 export const CATEGORY_COLORS: Record<number, string> = {
   1: "#E45858", // Sehenswertes
   2: "#6477E3", // Essen & Übernachten
-  3: "#F0873D", // Einkaufen
+  3: "#B8A2CD", // Einkaufen
   5: "#42D742", // Engagement
-  8: "#E0D12E", // Unternehmen
+  8: "#E0D12E", // Unternehmen & Handwerk
 };
+
+/**
+ * Dunklere Fassung einer Kategoriefarbe — dieselbe Rechnung wie im Web
+ * (components/CategoryIcon.tsx dort), damit beide Plattformen gleich
+ * aussehen.
+ *
+ * Die Farben aus Directus sind für weiße Schrift zu hell. Gemessener
+ * Kontrast zu Weiß (WCAG verlangt 4,5:1):
+ *
+ *   #E45858 Sehenswertes 3,60   #42D742 Engagement  1,90
+ *   #6477E3 Essen        3,97   #E0D12E Unternehmen 1,58
+ *
+ * Keine einzige erfüllt die Vorgabe, Gelb und Grün sind praktisch unlesbar.
+ * Um 50 % abgedunkelt liegen alle über 5,6:1 und bleiben als derselbe
+ * Farbton erkennbar.
+ */
+export function categoryColor(hex: string | null | undefined, fallback = "#fc6c14"): string {
+  const source = /^#[0-9a-f]{6}$/i.test(hex ?? "") ? hex! : fallback;
+  const dim = (from: number) => Math.round(parseInt(source.slice(from, from + 2), 16) * 0.5);
+  return `rgb(${dim(1)}, ${dim(3)}, ${dim(5)})`;
+}
+
+/**
+ * Kategoriefarbe inklusive Rückfall auf die eingebaute Palette — nimmt die
+ * Kategorie, wie Directus sie liefert (`Farbe`), und gibt die abgedunkelte
+ * Fassung zurück.
+ */
+export function categoryColorFor(
+  cat: { id: number; Farbe?: string | null } | null | undefined,
+): string {
+  if (!cat) return categoryColor(null);
+  return categoryColor(cat.Farbe || CATEGORY_COLORS[cat.id]);
+}
 
 const CATEGORY_ICON_PATHS: Record<number, string[]> = {
   1: [

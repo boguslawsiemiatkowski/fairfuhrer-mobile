@@ -13,10 +13,15 @@ import {
 } from "@/lib/directus";
 
 // Fallback-Tabelle, falls Directus nichts liefert
+// Die beiden Zeilen zu den Sehenswertes-Pins (50 % frei / 100 % mit Pro)
+// sind zu einer zusammengefallen: alle Audiopins sind für jeden frei.
+// Offline-Karten sind die Gegenleistung für Fairführer+.
+//
+// Die Tabelle kommt aus Directus (premium_comparison_features) — dort muss
+// dieselbe Änderung nachgezogen werden, das hier ist nur der Rückfall.
 const FALLBACK_ROWS: { feature: string; free: boolean; pro: boolean }[] = [
   { feature: "Alle Kategorien auf der Karte", free: true, pro: true },
-  { feature: "50 % der Sehenswertes-Pins", free: true, pro: true },
-  { feature: "100 % der Sehenswertes-Pins", free: false, pro: true },
+  { feature: "Alle Audiopins, auch Sehenswertes", free: true, pro: true },
   { feature: "Offline-Karten", free: false, pro: true },
   { feature: "Orte vorschlagen", free: false, pro: true },
   { feature: "Community-Funktionen", free: false, pro: true },

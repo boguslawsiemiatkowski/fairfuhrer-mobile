@@ -6,20 +6,29 @@ import type { DirectusOrte, DirectusKategorie, DirectusEinstellungen } from "@/t
 
 // ─── Sehenswürdigkeiten gating ───────────────────────────────────────────────
 //
-// Free accounts see ALL pins in EVERY category EXCEPT "Sehenswertes"
-// (Directus category, env-overridable id). For Sehenswertes-tagged places
-// we select a deterministic top-N subset by stable hash so the free user
-// always sees exactly ceil(0.5 * N) places — same set across devices.
-// Premium sees 100 %.
+// ALLE Nutzer sehen alle Audiopins, auch die der Kategorie „Sehenswertes".
 //
-// Detection priority:
+// Vorher war die Hälfte davon gesperrt (Franks Entscheidung 2026-07-03). Das
+// ist aufgehoben: Inhalte zurückzuhalten widerspricht dem Zweck des
+// Fairführers, und im Web hat ohnehin jeder Pin seit Oktober 2026 eine eigene,
+// bei Google auffindbare Seite unter /liste/[stadt]/[slug] — ein Pin, der
+// dort frei lesbar ist, in der App zu sperren, wäre nicht erklärbar.
+//
+// Premium bleibt bestehen, nur mit anderem Inhalt: Offline-Karten sind die
+// Gegenleistung, nicht der Zugang zu Pins. Die Produktnamen tragen das
+// schon („support.fair.yearly", „support.small.yearly") — es geht um
+// Unterstützung des Projekts, nicht um Freischalten.
+//
+// Die Maschinerie darunter bleibt absichtlich erhalten: sollte das Modell
+// zurückkehren, genügt es, diesen Wert wieder auf 0.5 zu setzen. Deshalb
+// bleiben auch die Sperr-Zustände in PinCard und auf der Karte im Code —
+// sie werden nur nie mehr wahr.
+//
+// Detection priority (weiterhin gültig, falls das Modell zurückkommt):
 //   1. EXPO_PUBLIC_SIGHTS_CATEGORY_ID — explicit override (preferred)
 //   2. Fallback: normalized German name starts with "sehen"
 //      (matches "Sehenswertes" and "Sehenswürdigkeiten").
-//
-// A place tagged with Sehenswertes + any other category is still treated as
-// Sehenswertes and is subject to the 50 % cap (Frank's decision 2026-07-03).
-const FREE_VISIBLE_RATIO = 0.5;
+const FREE_VISIBLE_RATIO = 1;
 
 function normalizeGerman(input: string): string {
   return input
@@ -70,8 +79,13 @@ function stableHash01(place: DirectusOrte): number {
 // ─── Shared gating computation ───────────────────────────────────────────────
 //
 // Returns two sets for free users:
-//   visibleSightsIds — the top-50% Sehenswertes places (unlocked)
-//   lockedSightsIds  — the remaining 50% (shown on map, paywall on tap)
+//   visibleSightsIds — the top-N Sehenswertes places (unlocked)
+//   lockedSightsIds  — the rest (shown on map, paywall on tap)
+//
+// Bei FREE_VISIBLE_RATIO = 1 (aktuell) ist `lockedSightsIds` immer leer:
+// `visibleCount` erreicht dann `sights.length`, und `slice(visibleCount)`
+// liefert nichts. Die Rechnung bleibt dennoch stehen, damit ein Zurück zu
+// 0.5 ein Einzeiler ist.
 //
 // For premium users both sets are empty (not needed — all places are open).
 

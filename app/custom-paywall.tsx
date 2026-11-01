@@ -25,11 +25,16 @@ const DEFAULTS = {
   hero_headline: "WERDE\nFAIR-\nMACHER:IN.",
   hero_subtitle:
     "Fairführer wird von einem kleinen Team gemacht. Mit deinem Beitrag bleiben wir frei und unabhängig — alle Funktionen gehören dazu.",
+  // „Alle Sehenswürdigkeiten — nicht nur 50 %" ist entfallen: alle
+  // Audiopins sind inzwischen für jeden frei (siehe placesStore). Offline-
+  // Karten stehen jetzt an erster Stelle — sie sind die eigentliche
+  // Gegenleistung. Die Texte kommen aus Directus; dort muss dieselbe
+  // Änderung nachgezogen werden, das hier sind nur die Rückfalltexte.
   features: [
-    "Alle Sehenswürdigkeiten — nicht nur 50 %",
     "Offline-Karten für unterwegs",
     "Eigene Orte vorschlagen & Pins erstellen",
     "Redaktionelle Prüfung deiner Pins",
+    "Du hältst den Fairführer frei und unabhängig",
   ],
   popular_badge: "BELIEBT",
   cta_prefix: "FAIRFÜHRER+ aktivieren",

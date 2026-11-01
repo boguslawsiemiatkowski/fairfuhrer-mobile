@@ -10,12 +10,16 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CategoryIcon, CATEGORY_COLORS } from "./CategoryIcon";
-import { isSightsCategory } from "@/stores/placesStore";
+import { CategoryIcon, categoryColorFor } from "./CategoryIcon";
+// isSightsCategory wird hier nicht mehr gebraucht, seit der Hinweis zur
+// 50-%-Sperre entfallen ist. `isPro` bleibt als Prop bestehen: die
+// aufrufenden Bildschirme übergeben es, und ein Entfernen würde dort
+// Änderungen erzwingen, ohne etwas zu gewinnen.
 import { BRAND_ORANGE_TEXT } from "@/lib/colors";
 import type { DirectusKategorie } from "@/types";
 
-const DEFAULT_COLOR = "#fc6c14";
+// DEFAULT_COLOR ist entfallen: categoryColorFor() bringt den Rückfall
+// (#fc6c14) selbst mit, siehe CategoryIcon.tsx.
 // Warmer Cremeton für die Kategorie-Leiste im Ausgangszustand (kein Filter
 // aktiv). Border der Leiste nutzt denselben Wert (randlos wirkende Kante).
 const BAR_BG = "rgba(255, 242, 232, 0.9)";
@@ -36,7 +40,10 @@ export function KategorieBar({
   const insets = useSafeAreaInsets();
 
   const selectedCat = selectedId ? categories.find((c) => c.id === selectedId) : null;
-  const barColor = selectedCat ? (selectedCat.Farbe ?? DEFAULT_COLOR) : BAR_BG;
+  // Abgedunkelt, weil die Leiste bei Auswahl weiße Schrift trägt: die rohen
+  // Directus-Farben erreichen dort keinen lesbaren Kontrast (Gelb 1,58:1).
+  // Dieselbe Rechnung wie im Web — siehe categoryColor().
+  const barColor = selectedCat ? categoryColorFor(selectedCat) : BAR_BG;
 
   const openMenu = useCallback(() => {
     slideAnim.setValue(0);
@@ -129,13 +136,12 @@ export function KategorieBar({
           </TouchableOpacity>
           {categories.map((cat) => {
             const isActive = cat.id === selectedId;
-            const showSightsHint = !isPro && isSightsCategory(cat);
             return (
               <TouchableOpacity
                 key={cat.id}
                 style={[
                   styles.kategorieMenuItem,
-                  isActive && { backgroundColor: cat.Farbe ?? DEFAULT_COLOR },
+                  isActive && { backgroundColor: categoryColorFor(cat) },
                 ]}
                 onPress={() => closeMenu(cat.id)}
                 activeOpacity={0.7}
@@ -143,8 +149,8 @@ export function KategorieBar({
                 <View style={styles.kategorieMenuIcon}>
                   <CategoryIcon
                     categoryId={cat.id}
-                    color={isActive ? "#fff" : (CATEGORY_COLORS[cat.id] ?? DEFAULT_COLOR)}
-                    strokeColor={isActive ? (CATEGORY_COLORS[cat.id] ?? DEFAULT_COLOR) : "white"}
+                    color={isActive ? "#fff" : categoryColorFor(cat)}
+                    strokeColor={isActive ? categoryColorFor(cat) : "white"}
                   />
                 </View>
                 <View style={styles.kategorieMenuTextWrap}>
@@ -153,14 +159,9 @@ export function KategorieBar({
                   >
                     {cat.Name}
                   </Text>
-                  {showSightsHint && (
-                    <Text
-                      style={[styles.kategorieMenuHint, isActive && styles.kategorieMenuHintActive]}
-                    >
-                      Basis-Nutzer sehen nur 50 % der Sehenswertes-Orte. Mit Fairführer+ sind alle
-                      sichtbar.
-                    </Text>
-                  )}
+                  {/* Der Hinweis „Basis-Nutzer sehen nur 50 % der
+                      Sehenswertes-Orte" ist entfallen: alle Audiopins sind
+                      für jeden frei. */}
                 </View>
               </TouchableOpacity>
             );
@@ -264,8 +265,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderColor: BAR_BG,
+    // Keine eigene Linie: vorher stand hier borderTopWidth in BAR_BG, dem
+    // hellen Cremeton. Ohne Auswahl fiel das nicht auf, weil die Leiste
+    // dieselbe Farbe hat — sobald aber eine Kategorie gewählt ist, wechselt
+    // der Hintergrund auf die dunkle Kategoriefarbe und die helle Linie
+    // blieb als weißer Rand stehen. Im Web war es derselbe Fehler.
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 12 : 10,
   },

@@ -22,7 +22,7 @@ import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
 import type { DirectusOrte } from "@/types";
 import HomeHeader from "@/components/HomeHeader";
-import { CategoryIcon, CATEGORY_COLORS } from "@/components/CategoryIcon";
+import { CategoryIcon, CATEGORY_COLORS, categoryColorFor } from "@/components/CategoryIcon";
 import { KategorieBar } from "@/components/KategorieBar";
 import { SearchSection, type SearchSectionHandle } from "@/components/SearchSection";
 
@@ -61,7 +61,8 @@ function placesToGeoJSON(
     features: places
       .filter((p) => p.location?.coordinates)
       .map((p) => {
-        const catId = p.Kategorie?.[0]?.Kategorie_id?.id ?? null;
+        const cat = p.Kategorie?.[0]?.Kategorie_id ?? null;
+        const catId = cat?.id ?? null;
         return {
           type: "Feature" as const,
           geometry: {
@@ -71,8 +72,8 @@ function placesToGeoJSON(
           properties: {
             placeId: p.id,
             locked: lockedIds.has(p.id) ? 1 : 0,
-            categoryColor:
-              catId !== null ? (CATEGORY_COLORS[catId] ?? DEFAULT_COLOR) : DEFAULT_COLOR,
+            // Abgedunkelt wie im Web: der Pin trägt das Symbol in Weiß.
+            categoryColor: categoryColorFor(cat),
             categoryIcon: iconName(catId),
           },
         };
@@ -287,7 +288,11 @@ export default function KarteScreen() {
             <Images>
               {ICON_CATEGORY_IDS.map((id) => (
                 <MapImage key={id} name={`cat-${id}`}>
-                  <CategoryIcon categoryId={id} color={CATEGORY_COLORS[id]} size={ICON_SIZE} />
+                  <CategoryIcon
+                    categoryId={id}
+                    color={categoryColorFor({ id, Farbe: CATEGORY_COLORS[id] })}
+                    size={ICON_SIZE}
+                  />
                 </MapImage>
               ))}
               {/* -1 = ID bez własnej ikony → CategoryIcon rysuje generyczny

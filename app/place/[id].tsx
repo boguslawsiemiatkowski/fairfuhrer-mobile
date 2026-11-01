@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line } from "react-native-svg";
 
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { categoryColorFor } from "@/components/CategoryIcon";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
 import { getMainImageUrl, getAudioUrl, getGalleryUrls } from "@/lib/mediaUrls";
@@ -389,7 +390,7 @@ export default function PlaceScreen() {
               {categories.map((cat) => (
                 <View
                   key={cat.id}
-                  style={[styles.categoryBadge, { backgroundColor: cat.Farbe ?? "#999" }]}
+                  style={[styles.categoryBadge, { backgroundColor: categoryColorFor(cat) }]}
                 >
                   <Text style={styles.categoryBadgeText}>{cat.Name}</Text>
                 </View>

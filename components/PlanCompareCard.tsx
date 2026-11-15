@@ -50,14 +50,15 @@ export default function PlanCompareCard({
 const s = StyleSheet.create({
   planCompareCard: {
     borderWidth: 1.5,
-    borderColor: "#e8e0d8",
-    borderRadius: 16,
+    borderColor: "#18222f",
+    borderRadius: 8,
     padding: 20,
     gap: 10,
-    backgroundColor: "#fafaf9",
+    backgroundColor: "#ffffff",
   },
   planCompareCardPremium: {
-    borderColor: "#fc6c14",
+    borderWidth: 2,
+    borderColor: "#18222f",
     backgroundColor: "#fff9f5",
   },
   planCompareTitleRow: {
@@ -69,11 +70,13 @@ const s = StyleSheet.create({
   planCompareTitle: {
     fontSize: 20,
     fontFamily: "FiraSansCondensed_700Bold",
-    color: "#111",
+    color: "#18222f",
   },
   planCompareBadge: {
     backgroundColor: "#fc6c14",
-    borderRadius: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#18222f",
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
@@ -97,7 +100,7 @@ const s = StyleSheet.create({
   },
   planCompareLock: {
     fontSize: 15,
-    color: "#ccc",
+    color: "#b0b8c4",
     fontFamily: "FiraSansCondensed_400Regular",
     lineHeight: 22,
     width: 18,
@@ -105,14 +108,14 @@ const s = StyleSheet.create({
   planCompareText: {
     fontSize: 15,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#333",
+    color: "#18222f",
     flex: 1,
     lineHeight: 22,
   },
   planCompareTextLocked: {
     fontSize: 15,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#bbb",
+    color: "#9aa2ae",
     flex: 1,
     lineHeight: 22,
   },

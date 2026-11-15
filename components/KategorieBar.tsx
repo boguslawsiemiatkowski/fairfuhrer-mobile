@@ -123,7 +123,11 @@ export function KategorieBar({
             activeOpacity={0.7}
           >
             <View style={styles.kategorieMenuIcon}>
-              <CategoryIcon categoryId={null} color={selectedId === null ? "#000" : "#000"} />
+              <CategoryIcon
+                categoryId={null}
+                color={selectedId === null ? "#fff" : "#000"}
+                strokeColor={selectedId === null ? "#000" : "#fff"}
+              />
             </View>
             <Text
               style={[
@@ -141,7 +145,7 @@ export function KategorieBar({
                 key={cat.id}
                 style={[
                   styles.kategorieMenuItem,
-                  isActive && { backgroundColor: categoryColorFor(cat) },
+                  isActive && styles.kategorieMenuItemActive,
                 ]}
                 onPress={() => closeMenu(cat.id)}
                 activeOpacity={0.7}
@@ -149,8 +153,8 @@ export function KategorieBar({
                 <View style={styles.kategorieMenuIcon}>
                   <CategoryIcon
                     categoryId={cat.id}
-                    color={isActive ? "#fff" : categoryColorFor(cat)}
-                    strokeColor={isActive ? categoryColorFor(cat) : "white"}
+                    color={categoryColorFor(cat)}
+                    strokeColor="#fff"
                   />
                 </View>
                 <View style={styles.kategorieMenuTextWrap}>
@@ -179,8 +183,8 @@ export function KategorieBar({
             <View style={styles.kategorieBarIcon}>
               <CategoryIcon
                 categoryId={selectedCat.id}
-                color="#fff"
-                strokeColor={barColor}
+                color="rgba(255,255,255,0.22)"
+                strokeColor="#fff"
                 size={28}
               />
             </View>
@@ -226,9 +230,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "#fff",
+    borderTopWidth: 2,
+    borderTopColor: "#18222f",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.14,
     shadowRadius: 12,
     elevation: 20,
   },

@@ -30,5 +30,5 @@ export default function AuthModal() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#f8f8ff" },
 });

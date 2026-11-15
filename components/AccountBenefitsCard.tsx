@@ -121,24 +121,29 @@ export default function AccountBenefitsCard({
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: "#181716",
-    borderRadius: 16,
+    backgroundColor: "#18222f",
+    borderWidth: 2,
+    borderColor: "#18222f",
+    borderRadius: 8,
     padding: 20,
     gap: 12,
   },
   // 90 % Deckkraft statt Vollton: der Container wirkt auf dem weißen Screen
   // weicher. Als Hintergrundfarbe, nicht als `opacity` auf der View — sonst
   // würden Text und Button mit ausgeblichen.
-  cardBrand: { backgroundColor: "rgba(252, 108, 20, 0.9)" },
+  cardBrand: {
+    backgroundColor: "rgba(252, 108, 20, 0.94)",
+    borderColor: "#18222f",
+  },
   /** Schrift auf orangem Grund — Weiß hat dort zu wenig Kontrast. */
-  onBrand: { color: "#181716" },
+  onBrand: { color: "#18222f" },
   eyebrow: {
     color: "#fc6c14",
     fontFamily: "FiraSansCondensed_700Bold",
     fontSize: 12,
     letterSpacing: 2,
   },
-  eyebrowBrand: { color: "#181716" },
+  eyebrowBrand: { color: "#18222f" },
   headline: {
     color: "#fff",
     fontFamily: "Anton_400Regular",
@@ -147,12 +152,12 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   intro: {
-    color: "rgba(255,255,255,0.75)",
+    color: "rgba(255,255,255,0.82)",
     fontFamily: "FiraSansCondensed_400Regular",
     fontSize: 14,
     lineHeight: 20,
   },
-  introBrand: { color: "rgba(24,23,22,0.85)" },
+  introBrand: { color: "rgba(24,34,47,0.88)" },
   benefitList: {
     gap: 8,
     marginTop: 4,
@@ -169,7 +174,7 @@ const s = StyleSheet.create({
     lineHeight: 22,
     width: 18,
   },
-  checkBrand: { color: "#181716" },
+  checkBrand: { color: "#18222f" },
   benefitText: {
     flex: 1,
     color: "#fff",
@@ -178,7 +183,7 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
   footnote: {
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.68)",
     fontFamily: "FiraSansCondensed_400Regular",
     fontSize: 12,
     lineHeight: 17,
@@ -188,7 +193,7 @@ const s = StyleSheet.create({
   // Bedingung statt Randnotiz: größer als der übrige Text, volle Deckkraft,
   // aufrecht statt kursiv — der Nutzer soll sie nicht überlesen.
   footnoteBrand: {
-    color: "#181716",
+    color: "#18222f",
     fontFamily: "FiraSansCondensed_600SemiBold",
     fontSize: 16,
     lineHeight: 23,
@@ -198,13 +203,13 @@ const s = StyleSheet.create({
   ctaBtn: {
     backgroundColor: "#fc6c14",
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     marginTop: 8,
   },
-  ctaBtnBrand: { backgroundColor: "#181716" },
+  ctaBtnBrand: { backgroundColor: "#18222f" },
   ctaBtnText: {
-    color: "#181716",
+    color: "#18222f",
     fontFamily: "FiraSansCondensed_700Bold",
     fontSize: 17,
     letterSpacing: 0.5,

@@ -23,13 +23,14 @@ export default function ProfilSection({ user, signOut }: any) {
 
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>Kontodaten</Text>
-      <View style={s.infoRow}>
-        <Text style={s.infoLabel}>E-Mail-Adresse</Text>
-        <Text style={s.infoValue}>{user?.email ?? "—"}</Text>
+      <View style={s.card}>
+        <Text style={s.sectionTitle}>Kontodaten</Text>
+        <View style={s.infoRow}>
+          <Text style={s.infoLabel}>E-Mail-Adresse</Text>
+          <Text style={s.infoValue}>{user?.email ?? "—"}</Text>
+        </View>
       </View>
 
-      <View style={s.divider} />
       {/* RevenueCat bindet das Abo an die Konto-ID. Beim Abmelden erzeugt das
           SDK eine neue anonyme ID ohne Kauf — Premium verschwindet also, bis
           sich der Nutzer wieder anmeldet. Das muss vor dem Klick klar sein. */}
@@ -46,7 +47,7 @@ export default function ProfilSection({ user, signOut }: any) {
         activeOpacity={0.7}
       >
         {signingOut ? (
-          <ActivityIndicator color="#111" size="small" />
+          <ActivityIndicator color="#18222f" size="small" />
         ) : (
           <Text style={s.signOutBtnText}>Abmelden</Text>
         )}
@@ -56,60 +57,71 @@ export default function ProfilSection({ user, signOut }: any) {
 }
 
 const s = StyleSheet.create({
-  section: { gap: 12 },
+  section: { gap: 14 },
+  card: {
+    backgroundColor: "#ffffff",
+    borderWidth: 1.5,
+    borderColor: "#18222f",
+    borderRadius: 8,
+    padding: 18,
+    gap: 10,
+  },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "FiraSansCondensed_700Bold",
-    color: "#18222f",
-    letterSpacing: 1,
+    color: "#fc6c14",
+    letterSpacing: 1.2,
     textTransform: "uppercase",
   },
   btnDisabled: { opacity: 0.5 },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f9f0eb",
+    alignItems: "center",
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(24,34,47,0.12)",
   },
   infoLabel: {
     fontSize: 14,
     fontFamily: "FiraSansCondensed_600SemiBold",
-    color: "#999",
+    color: "#5a6472",
   },
   infoValue: {
-    fontSize: 14,
-    fontFamily: "FiraSansCondensed_400Regular",
-    color: "#111",
+    fontSize: 15,
+    fontFamily: "FiraSansCondensed_600SemiBold",
+    color: "#18222f",
     flexShrink: 1,
     textAlign: "right",
   },
-  divider: { height: 1, backgroundColor: "#f0e8e0", marginVertical: 4 },
   warningBox: {
     backgroundColor: "#fff5ef",
-    borderLeftWidth: 3,
+    borderWidth: 1.5,
+    borderColor: "#18222f",
+    borderLeftWidth: 4,
     borderLeftColor: "#fc6c14",
-    borderRadius: 6,
+    borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
   warningText: {
     fontSize: 14,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#181716",
+    color: "#18222f",
     lineHeight: 20,
   },
   signOutBtn: {
     borderWidth: 1.5,
-    borderColor: "#111",
+    borderColor: "#18222f",
     paddingVertical: 14,
     alignItems: "center",
-    borderRadius: 6,
-    backgroundColor: "#fafafa",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
   },
   signOutBtnText: {
-    fontFamily: "FiraSansCondensed_600SemiBold",
-    fontSize: 15,
-    color: "#111",
+    fontFamily: "FiraSansCondensed_700Bold",
+    fontSize: 16,
+    color: "#18222f",
+    letterSpacing: 0.4,
   },
 });

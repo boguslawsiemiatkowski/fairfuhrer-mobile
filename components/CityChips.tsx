@@ -42,6 +42,8 @@ export function CityChips({
     [allPlaces],
   );
 
+  const allCount = filteredPlaces.length;
+
   return (
     <ScrollView
       horizontal
@@ -49,6 +51,15 @@ export function CityChips({
       style={styles.chipRow}
       contentContainerStyle={styles.chipRowContent}
     >
+      <TouchableOpacity
+        style={[styles.chip, !activeRegionName && styles.chipActive]}
+        onPress={() => onSelectRegion(null)}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.chipText, !activeRegionName && styles.chipTextActive]}>
+          Alle ({allCount})
+        </Text>
+      </TouchableOpacity>
       {visibleRegions.map((region) => {
         const isActive = activeRegionName === region.name;
         const count = counts[region.name];

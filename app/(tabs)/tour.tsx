@@ -19,6 +19,7 @@ import { usePlaylistStore } from "@/stores/playlistStore";
 import { getAudioUrl } from "@/lib/mediaUrls";
 import { BRAND_ORANGE_TEXT } from "@/lib/colors";
 import HomeHeader from "@/components/HomeHeader";
+import { CategoryIcon, categoryColorFor } from "@/components/CategoryIcon";
 import { supabase } from "@/lib/supabase";
 import type { DirectusOrte, DirectusKategorie } from "@/types";
 
@@ -256,6 +257,12 @@ export default function TourScreen() {
                 onPress={() => startKategorie(cat.id, cat.Name)}
                 activeOpacity={0.7}
               >
+                <CategoryIcon
+                  categoryId={cat.id}
+                  color={categoryColorFor(cat)}
+                  strokeColor="#fff"
+                  size={34}
+                />
                 <View style={s.rowText}>
                   <Text style={s.rowTitle}>{cat.Name}</Text>
                   <Text style={s.rowSubtitle}>
@@ -273,38 +280,38 @@ export default function TourScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  container: { flex: 1, backgroundColor: "#f8f8ff" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f8f8ff" },
   scroll: { paddingBottom: 40 },
 
   header: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f2f2f2",
+    paddingTop: 14,
+    paddingBottom: 18,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 2,
+    borderBottomColor: "#18222F",
   },
   headerTitle: {
     fontSize: 32,
     fontFamily: "Anton_400Regular",
     color: "#18222F",
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 15,
+    color: "#475569",
     fontFamily: "FiraSansCondensed_400Regular",
     marginTop: 4,
   },
 
   section: { marginTop: 24, paddingHorizontal: 20 },
-  // Orange hebt die drei Gliederungspunkte ("Nach Umgebung", "Nach Stadt",
-  // "Nach Kategorie") von den Einträgen darunter ab — Vorgabe von Miriam,
-  // damit die Struktur der Seite sofort erkennbar ist. BRAND_ORANGE_TEXT
-  // statt BRAND_ORANGE, weil die Titel auf weißem Grund stehen.
   sectionTitle: {
     fontSize: 18,
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "Anton_400Regular",
     color: BRAND_ORANGE_TEXT,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
     marginBottom: 12,
   },
 
@@ -312,18 +319,20 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#18222F",
+    borderWidth: 2,
+    borderColor: "#000000",
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 10,
     gap: 16,
   },
   umgebungText: { flex: 1 },
   umgebungTitle: {
     color: "#fff",
     fontSize: 20,
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
   },
   umgebungHint: {
-    color: "#bbb",
+    color: "rgba(255,255,255,0.82)",
     fontSize: 13,
     marginTop: 4,
     fontFamily: "FiraSansCondensed_400Regular",
@@ -332,20 +341,24 @@ const s = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f2f2f2",
+    backgroundColor: "#ffffff",
+    borderWidth: 1.5,
+    borderColor: "#18222F",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
     gap: 12,
   },
   rowText: { flex: 1 },
   rowTitle: {
     fontSize: 16,
     color: "#18222F",
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
   },
   rowSubtitle: {
     fontSize: 13,
-    color: "#666",
+    color: "#475569",
     marginTop: 2,
     fontFamily: "FiraSansCondensed_400Regular",
   },

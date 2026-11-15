@@ -123,7 +123,7 @@ export function CategoryIcon({
           <Path key={i} d={d} />
         ))}
         {extraCircles.map((c, i) => (
-          <Circle key={`c${i}`} cx={c.cx} cy={c.cy} r={c.r} fill="white" stroke="white" />
+          <Circle key={`c${i}`} cx={c.cx} cy={c.cy} r={c.r} fill={strokeColor} stroke={strokeColor} />
         ))}
       </G>
     </Svg>

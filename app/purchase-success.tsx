@@ -60,17 +60,17 @@ export default function PurchaseSuccessScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#f8f8ff" },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 32,
-    gap: 24,
+    gap: 20,
   },
   header: {
     alignItems: "center",
     gap: 10,
-    paddingTop: 24,
+    paddingTop: 16,
   },
   emoji: {
     fontSize: 56,
@@ -78,20 +78,21 @@ const s = StyleSheet.create({
   title: {
     fontFamily: "Anton_400Regular",
     fontSize: 32,
-    color: "#181716",
+    color: "#18222f",
     letterSpacing: 1,
     textAlign: "center",
   },
   subtitle: {
     fontFamily: "FiraSansCondensed_400Regular",
     fontSize: 15,
-    color: "#666",
+    color: "#4a5568",
     textAlign: "center",
   },
   section: {
+    backgroundColor: "#ffffff",
     borderWidth: 1.5,
-    borderColor: "#f0e8e0",
-    borderRadius: 14,
+    borderColor: "#18222f",
+    borderRadius: 8,
     padding: 18,
     gap: 10,
   },
@@ -126,25 +127,25 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#333",
+    color: "#18222f",
     lineHeight: 22,
   },
   hint: {
     fontSize: 12,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#666",
+    color: "#4a5568",
     lineHeight: 17,
     marginTop: 6,
     fontStyle: "italic",
   },
   ctaSection: {
     gap: 10,
-    marginTop: 8,
+    marginTop: 4,
   },
   primaryBtn: {
-    backgroundColor: "#181716",
+    backgroundColor: "#18222f",
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
   },
   primaryBtnText: {
@@ -154,12 +155,16 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   secondaryBtn: {
-    paddingVertical: 14,
+    paddingVertical: 13,
     alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#18222f",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
   },
   secondaryBtnText: {
-    color: "#666",
+    color: "#18222f",
     fontSize: 15,
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
   },
 });

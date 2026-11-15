@@ -34,7 +34,10 @@ export default function HomeHeader({ einstellungen }: HomeHeaderProps) {
 const styles = StyleSheet.create({
   header: {
     paddingTop: 8,
-    paddingBottom: 4,
+    paddingBottom: 6,
+    backgroundColor: "#fff",
+    borderBottomWidth: 2,
+    borderBottomColor: "#18222f",
   },
   headerRow: {
     flexDirection: "row",

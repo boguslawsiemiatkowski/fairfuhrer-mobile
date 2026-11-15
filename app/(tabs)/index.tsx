@@ -452,7 +452,7 @@ export default function ListeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f8f8ff",
   },
   centered: {
     flex: 1,

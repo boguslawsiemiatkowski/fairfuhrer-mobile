@@ -127,6 +127,11 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#000000",
+    overflow: "hidden",
+    backgroundColor: "#ddd",
   },
   cardImage: {
     width: "100%",

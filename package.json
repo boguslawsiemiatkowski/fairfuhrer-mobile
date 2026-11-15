@@ -8,6 +8,8 @@
     "ios": "doppler run -- expo start --ios",
     "web": "doppler run -- expo start --web",
     "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -67,11 +69,6 @@
   },
   "private": true,
   "expo": {
-    "install": {
-      "exclude": [
-        "react"
-      ]
-    },
     "autolinking": {
       "ios": {
         "exclude": [

@@ -133,20 +133,21 @@ export default function PremiumWithoutAccountScreen({ startWithRegister = false 
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#f8f8ff" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0e8e0",
+    paddingVertical: 18,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 2,
+    borderBottomColor: "#18222f",
   },
   headerTitle: {
     fontFamily: "Anton_400Regular",
     fontSize: 24,
-    color: "#181716",
+    color: "#18222f",
     letterSpacing: 1,
   },
   scroll: {
@@ -157,9 +158,11 @@ const s = StyleSheet.create({
   proBadge: {
     alignSelf: "flex-start",
     backgroundColor: "#fc6c14",
+    borderWidth: 1.5,
+    borderColor: "#18222f",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   proBadgeText: {
     color: "#fff",
@@ -170,19 +173,20 @@ const s = StyleSheet.create({
   headline: {
     fontFamily: "Anton_400Regular",
     fontSize: 26,
-    color: "#181716",
+    color: "#18222f",
     letterSpacing: 0.5,
   },
   lead: {
     fontFamily: "FiraSansCondensed_400Regular",
     fontSize: 15,
-    color: "#555",
+    color: "#4a5568",
     lineHeight: 22,
   },
   card: {
+    backgroundColor: "#ffffff",
     borderWidth: 1.5,
-    borderColor: "#f0e8e0",
-    borderRadius: 14,
+    borderColor: "#18222f",
+    borderRadius: 8,
     padding: 18,
     gap: 10,
   },
@@ -197,7 +201,7 @@ const s = StyleSheet.create({
   cardBody: {
     fontFamily: "FiraSansCondensed_400Regular",
     fontSize: 14,
-    color: "#555",
+    color: "#4a5568",
     lineHeight: 20,
   },
   featureRow: {
@@ -216,13 +220,13 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#333",
+    color: "#18222f",
     lineHeight: 22,
   },
   hint: {
     fontSize: 12,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#666",
+    color: "#5a6472",
     lineHeight: 17,
     marginTop: 4,
     fontStyle: "italic",
@@ -230,13 +234,13 @@ const s = StyleSheet.create({
   hintStrong: {
     fontSize: 15,
     fontFamily: "FiraSansCondensed_600SemiBold",
-    color: "#181716",
+    color: "#18222f",
     lineHeight: 21,
   },
   primaryBtn: {
-    backgroundColor: "#181716",
+    backgroundColor: "#18222f",
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     marginTop: 8,
   },
@@ -248,16 +252,16 @@ const s = StyleSheet.create({
   },
   secondaryBtn: {
     borderWidth: 1.5,
-    borderColor: "#181716",
+    borderColor: "#18222f",
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     marginTop: 4,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#f8f8ff",
   },
   secondaryBtnText: {
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
     fontSize: 15,
-    color: "#181716",
+    color: "#18222f",
   },
 });

@@ -159,7 +159,7 @@ export default function LegalScreen({ title, collection, mode = "singleton" }: P
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f8f8ff",
   },
   header: {
     flexDirection: "row",
@@ -167,8 +167,9 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 2,
+    borderBottomColor: "#18222f",
   },
   backBtn: {
     width: 40,
@@ -178,15 +179,16 @@ const s = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: "Anton_400Regular",
-    fontSize: 18,
-    color: FF_BLACK,
-    letterSpacing: 0.5,
+    fontSize: 20,
+    color: "#18222f",
+    letterSpacing: 0.6,
     flex: 1,
     textAlign: "center",
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
+    gap: 10,
   },
   center: {
     flex: 1,
@@ -196,29 +198,35 @@ const s = StyleSheet.create({
   errorText: {
     fontFamily: "FiraSansCondensed_400Regular",
     fontSize: 15,
-    color: "#999",
+    color: "#5a6472",
   },
   faqItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    backgroundColor: "#ffffff",
+    borderWidth: 1.5,
+    borderColor: "#18222f",
+    borderRadius: 8,
+    paddingHorizontal: 16,
     paddingVertical: 4,
   },
   faqQuestion: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
+    paddingVertical: 12,
     gap: 12,
   },
   faqQuestionText: {
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
     fontSize: 15,
-    color: FF_BLACK,
+    color: "#18222f",
     flex: 1,
     lineHeight: 20,
   },
   faqAnswer: {
-    paddingBottom: 16,
-    paddingRight: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(24,34,47,0.12)",
+    paddingTop: 12,
+    paddingBottom: 14,
+    paddingRight: 4,
   },
 });

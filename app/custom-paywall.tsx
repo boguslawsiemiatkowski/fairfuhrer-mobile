@@ -370,25 +370,32 @@ export default function PaywallScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#f8f8ff" },
   scroll: { flexGrow: 1 },
 
   // Hero
-  hero: { minHeight: 380, justifyContent: "flex-end" },
+  hero: {
+    minHeight: 380,
+    justifyContent: "flex-end",
+    borderBottomWidth: 2,
+    borderBottomColor: "#18222f",
+  },
   closeBtn: {
     position: "absolute",
     top: 16,
     right: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 20,
-    width: 36,
-    height: 36,
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: "#18222f",
+    borderRadius: 8,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
   },
   closeBtnText: {
-    color: "#fff",
+    color: "#18222f",
     fontSize: 16,
     fontFamily: "FiraSansCondensed_700Bold",
   },
@@ -409,17 +416,20 @@ const s = StyleSheet.create({
   heroSubtitle: {
     fontSize: 16,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "rgba(255,255,255,0.88)",
+    color: "rgba(255,255,255,0.9)",
     lineHeight: 22,
   },
 
   // Features
   featuresSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0e8e0",
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 18,
+    gap: 10,
+    backgroundColor: "#ffffff",
+    borderWidth: 1.5,
+    borderColor: "#18222f",
+    borderRadius: 8,
   },
   featureRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   featureCheck: {
@@ -432,19 +442,19 @@ const s = StyleSheet.create({
   featureText: {
     fontSize: 15,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#333",
+    color: "#18222f",
     flex: 1,
     lineHeight: 22,
   },
   benefitsSection: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
   },
 
   // Packages — Reich layout
   packagesSection: {
     paddingHorizontal: 20,
-    paddingTop: 28,
+    paddingTop: 24,
     gap: 12,
   },
   packageCard: {
@@ -453,22 +463,23 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     borderWidth: 1.5,
-    borderColor: "#e8e0d8",
-    borderRadius: 14,
+    borderColor: "#18222f",
+    borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 18,
-    backgroundColor: "#fafaf9",
+    backgroundColor: "#ffffff",
   },
   packageCardSelected: {
-    borderColor: "#fc6c14",
-    backgroundColor: "#fff9f5",
+    borderWidth: 2,
+    borderColor: "#18222f",
+    backgroundColor: "#fff5ef",
   },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: "#c7bdb3",
+    borderColor: "#18222f",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -486,34 +497,36 @@ const s = StyleSheet.create({
   packageTitle: {
     fontSize: 15,
     fontFamily: "FiraSansCondensed_700Bold",
-    color: "#111",
+    color: "#18222f",
   },
   packageDescription: {
     fontSize: 12,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#888",
+    color: "#5a6472",
     marginTop: 2,
   },
   packagePrice: { alignItems: "flex-end" },
   packagePriceValue: {
     fontFamily: "Anton_400Regular",
     fontSize: 22,
-    color: "#181716",
+    color: "#18222f",
     letterSpacing: 0.5,
   },
   packagePerMonth: {
     fontFamily: "FiraSansCondensed_400Regular",
-    fontSize: 10,
-    color: "#888",
+    fontSize: 11,
+    color: "#5a6472",
   },
   popularBadge: {
     position: "absolute",
-    top: -9,
+    top: -10,
     right: 14,
     backgroundColor: "#fc6c14",
-    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#18222f",
+    borderRadius: 6,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   popularBadgeText: {
     fontSize: 10,
@@ -530,10 +543,10 @@ const s = StyleSheet.create({
     gap: 12,
   },
   ctaBtn: {
-    backgroundColor: "#181716",
+    backgroundColor: "#18222f",
     paddingTop: 14,
-    paddingBottom: 18,
-    borderRadius: 14,
+    paddingBottom: 16,
+    borderRadius: 8,
     alignItems: "center",
   },
   ctaBtnDisabled: { opacity: 0.4 },
@@ -547,7 +560,7 @@ const s = StyleSheet.create({
   restoreBtnText: {
     fontSize: 14,
     fontFamily: "FiraSansCondensed_600SemiBold",
-    color: "#888",
+    color: "#5a6472",
   },
 
   // Legal — Voll
@@ -555,12 +568,12 @@ const s = StyleSheet.create({
   legalText: {
     fontSize: 12,
     fontFamily: "FiraSansCondensed_400Regular",
-    color: "#2d2e32",
+    color: "#4a5568",
     textAlign: "center",
     lineHeight: 16,
   },
   legalStrong: {
-    color: "#000",
+    color: "#18222f",
     fontFamily: "FiraSansCondensed_600SemiBold",
   },
   legalLinks: {
@@ -571,8 +584,8 @@ const s = StyleSheet.create({
   legalLink: {
     fontSize: 12,
     fontFamily: "FiraSansCondensed_600SemiBold",
-    color: "#000",
+    color: "#18222f",
     textDecorationLine: "underline",
   },
-  legalSep: { fontSize: 12, color: "#000" },
+  legalSep: { fontSize: 12, color: "#18222f" },
 });

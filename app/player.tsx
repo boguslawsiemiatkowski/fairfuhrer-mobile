@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
-  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
   GestureResponderEvent,
   LayoutChangeEvent,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, { Polygon, Rect, Circle } from "react-native-svg";
@@ -179,7 +179,13 @@ export default function PlayerScreen() {
         {/* ── Cover ── */}
         <View style={s.coverWrap}>
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={s.cover} />
+            <Image
+              source={{ uri: imageUrl }}
+              style={s.cover}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+            />
           ) : (
             <View style={[s.cover, s.coverPlaceholder]} />
           )}

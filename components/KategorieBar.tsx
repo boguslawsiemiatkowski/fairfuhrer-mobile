@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 import { CategoryIcon, categoryColorFor } from "./CategoryIcon";
 // isSightsCategory wird hier nicht mehr gebraucht, seit der Hinweis zur
 // 50-%-Sperre entfallen ist. `isPro` bleibt als Prop bestehen: die
@@ -46,6 +47,7 @@ export function KategorieBar({
   const barColor = selectedCat ? categoryColorFor(selectedCat) : BAR_BG;
 
   const openMenu = useCallback(() => {
+    void Haptics.selectionAsync().catch(() => {});
     slideAnim.setValue(0);
     setModalVisible(true);
   }, [slideAnim]);
@@ -61,6 +63,9 @@ export function KategorieBar({
 
   const closeMenu = useCallback(
     (id: number | null) => {
+      if (id !== selectedId) {
+        void Haptics.selectionAsync().catch(() => {});
+      }
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 200,
@@ -71,7 +76,7 @@ export function KategorieBar({
         onSelect(id);
       });
     },
-    [slideAnim, onSelect],
+    [slideAnim, onSelect, selectedId],
   );
 
   const menuTranslateY = slideAnim.interpolate({

@@ -91,6 +91,7 @@
       "expo-asset",
       "expo-secure-store",
       "expo-image-picker",
+      "expo-web-browser",
       "expo-apple-authentication",
       [
         "@sentry/react-native/expo",

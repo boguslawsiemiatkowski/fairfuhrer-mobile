@@ -1,5 +1,6 @@
 import React, { memo, useCallback } from "react";
-import { View, Text, TouchableOpacity, ImageBackground, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path, Circle } from "react-native-svg";
 import { useRouter } from "expo-router";
@@ -53,12 +54,17 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
   return (
     <>
       <TouchableOpacity style={styles.card} activeOpacity={0.95} onPress={handlePress}>
-        <ImageBackground
-          source={imageUrl ? { uri: imageUrl } : undefined}
-          style={styles.cardImage}
-          resizeMode="cover"
-          blurRadius={isLocked ? 8 : 0}
-        >
+        <View style={styles.cardImage}>
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+              blurRadius={isLocked ? 18 : 0}
+            />
+          ) : null}
           <LinearGradient colors={["rgba(0,0,0,0.5)", "transparent"]} style={styles.gradientTop} />
           <LinearGradient
             colors={["transparent", "rgb(252, 108, 20, 0.6)"]}
@@ -118,7 +124,7 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
               {[place?.Stadt, place?.Land].filter(Boolean).join(", ")}
             </Text>
           </View>
-        </ImageBackground>
+        </View>
       </TouchableOpacity>
     </>
   );

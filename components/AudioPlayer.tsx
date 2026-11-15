@@ -8,6 +8,7 @@ import {
   LayoutChangeEvent,
 } from "react-native";
 import Svg, { Polygon, Rect, Path } from "react-native-svg";
+import * as Haptics from "expo-haptics";
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from "expo-audio";
 import Animated, {
   useSharedValue,
@@ -139,14 +140,17 @@ export function AudioPlayer({ src }: AudioPlayerProps) {
   );
 
   const handleSkipBack = useCallback(() => {
+    void Haptics.selectionAsync().catch(() => {});
     player.seekTo(Math.max(0, currentTime - 10));
   }, [player, currentTime]);
 
   const handleSkipForward = useCallback(() => {
+    void Haptics.selectionAsync().catch(() => {});
     player.seekTo(Math.min(duration, currentTime + 10));
   }, [player, duration, currentTime]);
 
   const handleTogglePlay = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (isPlaying) {
       player.pause();
     } else {
@@ -156,6 +160,7 @@ export function AudioPlayer({ src }: AudioPlayerProps) {
 
   const handleSetSpeed = useCallback(
     (speed: SpeedOption) => {
+      void Haptics.selectionAsync().catch(() => {});
       setPlaybackSpeed(speed);
       player.setPlaybackRate(speed);
     },

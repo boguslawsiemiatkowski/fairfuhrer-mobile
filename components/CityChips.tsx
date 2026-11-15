@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
 import type { DirectusOrte } from "@/types";
 
 export type Region = {
@@ -53,7 +54,10 @@ export function CityChips({
     >
       <TouchableOpacity
         style={[styles.chip, !activeRegionName && styles.chipActive]}
-        onPress={() => onSelectRegion(null)}
+        onPress={() => {
+          void Haptics.selectionAsync().catch(() => {});
+          onSelectRegion(null);
+        }}
         activeOpacity={0.8}
       >
         <Text style={[styles.chipText, !activeRegionName && styles.chipTextActive]}>
@@ -67,7 +71,10 @@ export function CityChips({
           <TouchableOpacity
             key={region.name}
             style={[styles.chip, isActive && styles.chipActive]}
-            onPress={() => onSelectRegion(isActive ? null : region)}
+            onPress={() => {
+              void Haptics.selectionAsync().catch(() => {});
+              onSelectRegion(isActive ? null : region);
+            }}
             activeOpacity={0.8}
           >
             <Text style={[styles.chipText, isActive && styles.chipTextActive]}>

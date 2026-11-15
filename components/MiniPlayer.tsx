@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { Image } from "expo-image";
 import { useRouter, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon, Rect } from "react-native-svg";
@@ -102,7 +103,13 @@ export default function MiniPlayer() {
       onPress={() => router.push("/player")}
     >
       {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={styles.thumb} />
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.thumb}
+          contentFit="cover"
+          transition={120}
+          cachePolicy="memory-disk"
+        />
       ) : (
         <View style={[styles.thumb, styles.thumbPlaceholder]} />
       )}

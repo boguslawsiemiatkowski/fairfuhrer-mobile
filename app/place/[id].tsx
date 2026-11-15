@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   StatusBar,
   Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Line, Path, Circle, Polyline } from "react-native-svg";
@@ -314,7 +314,9 @@ function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
         <Image
           source={{ uri: images[currentIndex].uri }}
           style={galleryStyles.fullImage}
-          resizeMode="contain"
+          contentFit="contain"
+          transition={120}
+          cachePolicy="memory-disk"
         />
       </Animated.View>
       <TouchableOpacity
@@ -600,7 +602,13 @@ export default function PlaceScreen() {
             onPress={() => setGalleryIndex(0)}
             style={styles.mainImageSection}
           >
-            <Image source={{ uri: imageUrl }} style={styles.mainImage} resizeMode="cover" />
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.mainImage}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+            />
           </TouchableOpacity>
         )}
 
@@ -743,7 +751,8 @@ export default function PlaceScreen() {
                               `${DIRECTUS_URL}/assets/${item.Image}`,
                           }}
                           style={styles.zertLogo}
-                          resizeMode="contain"
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
                         />
                       ) : null}
                       <Text style={styles.zertName} numberOfLines={2}>
@@ -768,7 +777,13 @@ export default function PlaceScreen() {
                     activeOpacity={0.85}
                     style={styles.galleryItemWrap}
                   >
-                    <Image source={{ uri }} style={styles.galleryImage} resizeMode="cover" />
+                    <Image
+                      source={{ uri }}
+                      style={styles.galleryImage}
+                      contentFit="cover"
+                      transition={150}
+                      cachePolicy="memory-disk"
+                    />
                   </TouchableOpacity>
                 ))}
               </View>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router/react-navigation";
 import { supabase } from "@/lib/supabase";
 import { withPositionTimeout } from "@/lib/location";
 

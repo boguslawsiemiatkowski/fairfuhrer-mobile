@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter } from "expo-router";
 import Svg, { Polygon, Circle } from "react-native-svg";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
@@ -22,14 +22,26 @@ import { PinCard } from "@/components/PinCard";
 import { KategorieBar } from "@/components/KategorieBar";
 import { SearchSection, type SearchSectionHandle } from "@/components/SearchSection";
 import { CityChips, placesInRegion, type Region } from "@/components/CityChips";
-import { supabase } from "@/lib/supabase";
+import { distanceInMeters } from "@/stores/routeStore";
 import { useGpsSort } from "@/hooks/useGpsSort";
 
 const CARD_GAP = 12; // odstęp między kartami i od lewej krawędzi
 const CARD_PEEK = 44; // ile px następnej karty widać po prawej
 const MAX_CARD_WIDTH = 420; // cap dla tabletów — karta nie szersza niż na większym telefonie
+const NEARBY_SEARCH_RADIUS_M = 20_000; // 20 km dla miejscowości spoza dokładnych nazw Stadt
 
 const keyExtractor = (id: number) => String(id);
+
+function normalizeCity(input: string | null | undefined): string {
+  if (!input) return "";
+  return input
+    .toLowerCase()
+    .replace(/ä/g, "a")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u")
+    .replace(/ß/g, "ss")
+    .trim();
+}
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -45,17 +57,7 @@ export default function ListeScreen() {
   } = usePlacesStore();
   const { isPro } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const searchRef = useRef<SearchSectionHandle>(null);
-  // Bei Rückkehr aus einem modal-Screen (Pin-Detail, Paywall) oder anderem
-  // Tab die Such-Vorschläge ausblenden — ZACHOWUJEMY jednak wpisany tekst
-  // (np. "Lindau"), zeby user widzial ze filtr jest nadal aktywny. Reset
-  // nastepuje tylko przy jawnym klikanciu X w wyszukiwarce.
-  useEffect(() => {
-    if (pathname === "/" || pathname === "/(tabs)") {
-      searchRef.current?.hideSuggestions();
-    }
-  }, [pathname]);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   // Wymiary kart — capped dla tabletów, wycentrowane gdy ekran szerszy niż karta + peek.
@@ -124,57 +126,100 @@ export default function ListeScreen() {
       : gpsStatus === "error"
         ? "Standort erneut suchen"
         : "Nach Entfernung sortieren";
-  const [regionFilterIds, setRegionFilterIds] = useState<Set<number> | null>(null);
+
+  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
+  const [selectedSearchPlace, setSelectedSearchPlace] = useState<{
+    name: string;
+    lat: number;
+    lon: number;
+    cityName?: string;
+  } | null>(null);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList<number>>(null);
-  const allPlacesRef = useRef(allPlaces);
-  allPlacesRef.current = allPlaces;
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
-  const [activeRegionName, setActiveRegionName] = useState<string | null>(null);
 
-  // Fetch danych przy pierwszym montowaniu. isPro decyduje o tym, czy przy
-  // braku sieci wolno użyć cache offline (funkcja premium). fetchAll ma
-  // wewnętrzny guard — ponowne wywołanie po ustaleniu isPro jest bezpieczne.
+  // Fetch danych przy pierwszym montowaniu.
   useEffect(() => {
     fetchAll(isPro);
   }, [fetchAll, isPro]);
 
-  const categoryFilteredPlaces = useMemo(() => {
-    if (selectedCategoryId === null) return allPlaces;
-    return allPlaces.filter((p) =>
+  // 1. Filtrowanie po wybranym miejscu geograficznym z wyszukiwarki (np. Lindau, Bregenz):
+  //    - Jeśli nazwa pasuje do miasta (Stadt) w naszym katalogu, filtrujemy dokładnie do tego miasta
+  //      (i sortujemy od środka wyszukanego punktu).
+  //    - Jeśli użytkownik wybrał z Mapboxa miejscowość/region, który nie ma własnego wpisu Stadt,
+  //      pokazujemy piny w promieniu 20 km posortowane według odległości.
+  const searchFilteredPlaces = useMemo(() => {
+    if (!selectedSearchPlace) return allPlaces;
+
+    const targetCityNorm = normalizeCity(selectedSearchPlace.cityName ?? selectedSearchPlace.name);
+    const exactCityMatches = allPlaces.filter((p) => {
+      const pCity = normalizeCity(p.Stadt);
+      if (!pCity || !targetCityNorm) return false;
+      return (
+        pCity === targetCityNorm ||
+        pCity.startsWith(`${targetCityNorm} `) ||
+        pCity.startsWith(`${targetCityNorm},`) ||
+        pCity.startsWith(`${targetCityNorm}(`)
+      );
+    });
+
+    const centerCoords: [number, number] = [selectedSearchPlace.lon, selectedSearchPlace.lat];
+
+    if (exactCityMatches.length > 0) {
+      return [...exactCityMatches].sort((a, b) => {
+        const da = a.location?.coordinates
+          ? distanceInMeters(centerCoords, a.location.coordinates)
+          : 999999;
+        const db = b.location?.coordinates
+          ? distanceInMeters(centerCoords, b.location.coordinates)
+          : 999999;
+        return da - db;
+      });
+    }
+
+    // Fallback geograficzny: piny w promieniu 20 km od wybranej miejscowości
+    return allPlaces
+      .filter((p) => {
+        if (!p.location?.coordinates) return false;
+        return distanceInMeters(centerCoords, p.location.coordinates) <= NEARBY_SEARCH_RADIUS_M;
+      })
+      .sort((a, b) => {
+        const da = distanceInMeters(centerCoords, a.location!.coordinates);
+        const db = distanceInMeters(centerCoords, b.location!.coordinates);
+        return da - db;
+      });
+  }, [allPlaces, selectedSearchPlace]);
+
+  // 2. Filtrowanie po wybranym miejscu z wyszukiwarki ORAZ kategorii —
+  //    przekazywane do CityChips, dzięki czemu liczniki w chipsach (Alle, Deutschland,
+  //    Österreich, Schweiz) zawsze pokazują dokładną liczbę pinów dla wybranego miasta i kategorii!
+  const searchAndCategoryFilteredPlaces = useMemo(() => {
+    if (selectedCategoryId === null) return searchFilteredPlaces;
+    return searchFilteredPlaces.filter((p) =>
       p.Kategorie?.some((k) => k.Kategorie_id && k.Kategorie_id.id === selectedCategoryId),
     );
-  }, [allPlaces, selectedCategoryId]);
+  }, [searchFilteredPlaces, selectedCategoryId]);
 
-  // Realne miejsca (nie tylko IDs) po wszystkich filtrach — potrzebne dla
-  // Alle abspielen (musi mieć obiekty z audio, nie tylko id).
+  // 3. Finalna lista miejsc na kartach (uwzględnia także wybrany chip kraju oraz sortowanie GPS)
   const displayedPlaces = useMemo(() => {
-    let result = [...allPlaces];
+    let result = selectedRegion
+      ? placesInRegion(searchAndCategoryFilteredPlaces, selectedRegion)
+      : [...searchAndCategoryFilteredPlaces];
 
-    // Filtruj do wybranego regionu (chip)
-    if (regionFilterIds !== null) {
-      result = result.filter((p) => regionFilterIds.has(p.id));
-    }
-
-    if (selectedCategoryId !== null) {
-      result = result.filter((p) =>
-        p.Kategorie?.some((k) => k.Kategorie_id && k.Kategorie_id.id === selectedCategoryId),
-      );
-    }
-
-    if (orderedIds) {
+    // Sortowanie po GPS stosujemy, gdy użytkownik nie wyszukał konkretnego miasta
+    // (przy wyszukaniu miasta lista jest już posortowana względem tego miasta).
+    if (!selectedSearchPlace && orderedIds) {
       const indexMap = new Map(orderedIds.map((id, i) => [id, i]));
       result.sort((a, b) => (indexMap.get(a.id) ?? 9999) - (indexMap.get(b.id) ?? 9999));
     }
 
     return result;
-  }, [allPlaces, regionFilterIds, selectedCategoryId, orderedIds]);
+  }, [searchAndCategoryFilteredPlaces, selectedRegion, selectedSearchPlace, orderedIds]);
 
   const displayedIds = useMemo(() => displayedPlaces.map((p) => p.id), [displayedPlaces]);
 
-  // ── Alle abspielen (Miriam's original vision): playlist z aktualnie
-  // filtrowanych wynikow. Filter na piny z audio (playlisty bez audio nie ma sensu).
+  // ── Alle abspielen: playlista z aktualnie przefiltrowanych wyników posiadających audio
   const playablePlaces = useMemo(
     () => displayedPlaces.filter((p) => getAudioUrl(p) !== null),
     [displayedPlaces],
@@ -185,88 +230,49 @@ export default function ListeScreen() {
     return allCategories.find((c) => c.id === selectedCategoryId)?.Name ?? null;
   }, [allCategories, selectedCategoryId]);
 
-  // Label playlistow ktory pokaze sie w playerze (np. "Lindau · Sehenswertes").
-  // Priorytet: region + kategoria > region > kategoria > "Aktuelle Auswahl".
   const alleAbspielenLabel = useMemo(() => {
     const parts: string[] = [];
-    if (activeRegionName) parts.push(activeRegionName);
+    if (selectedSearchPlace?.name) parts.push(selectedSearchPlace.name);
+    if (selectedRegion?.name) parts.push(selectedRegion.name);
     if (selectedCategoryName) parts.push(selectedCategoryName);
     return parts.length > 0 ? parts.join(" · ") : "Aktuelle Auswahl";
-  }, [activeRegionName, selectedCategoryName]);
+  }, [selectedSearchPlace, selectedRegion, selectedCategoryName]);
 
   const startPlaylist = usePlaylistStore((s) => s.startPlaylist);
   const handleAlleAbspielen = useCallback(() => {
     if (playablePlaces.length === 0) return;
-    // Zero capa — Miriam prosila o "all matching pins". User zatrzyma
-    // playlist gdy zechce. Sehenswertes gating dla free (50% cap) i tak
-    // ogranicza liczbe pinow po stronie storu.
     startPlaylist(playablePlaces, { kind: "aktuelle_liste", label: alleAbspielenLabel });
     router.push("/player");
   }, [playablePlaces, alleAbspielenLabel, startPlaylist, router]);
 
-  // Widoczny gdy: sa piny do zagrania + user cos przefiltrowal (nie pokazujemy
-  // przy 700 pinach w domysle bo to bez sensu jako "tour").
   const showAlleAbspielenBtn =
-    playablePlaces.length > 0 && (activeRegionName !== null || selectedCategoryId !== null);
+    playablePlaces.length > 0 &&
+    (selectedSearchPlace !== null || selectedRegion !== null || selectedCategoryId !== null);
 
-  const handleLocationSelect = useCallback(
-    (
-      cityData: {
-        name: string;
-        region?: Region;
-        fromSearch?: boolean;
-        lat?: number;
-        lon?: number;
-      } | null,
-    ) => {
-      if (!cityData) {
-        setActiveRegionName(null);
-        setRegionFilterIds(null);
-        setOrderedIds(gpsOrderedIdsRef.current);
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-        return;
-      }
+  const handleSelectRegionChip = useCallback((region: Region | null) => {
+    setSelectedRegion(region);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, []);
 
-      setActiveRegionName(cityData.name);
-
-      if (cityData.fromSearch) {
-        Keyboard.dismiss();
-      }
-
-      if (cityData.region) {
-        const ids = new Set(placesInRegion(allPlacesRef.current, cityData.region).map((p) => p.id));
-        setRegionFilterIds(ids);
-        setOrderedIds(null);
-      } else if (cityData.fromSearch && cityData.lat && cityData.lon) {
-        // user selected a Mapbox suggestion
-        setRegionFilterIds(null);
-        supabase
-          .rpc("nearby_orte", {
-            user_lat: cityData.lat,
-            user_lng: cityData.lon,
-          })
-          .then(({ data, error }) => {
-            if (!error && data) {
-              const ids = (data as { id: number }[]).map((p) => p.id);
-              setOrderedIds(ids);
-            }
-          });
-      }
-
+  const handleSelectSearchGeo = useCallback(
+    (item: { name: string; lat: number; lon: number; isLocalPlace: boolean; cityName?: string }) => {
+      Keyboard.dismiss();
+      // Resetujemy zawężenie do innego kraju, aby np. po wybraniu „Bregenz” (Austria)
+      // wcześniejszy filtr „Deutschland” nie ukrył wyników.
+      setSelectedRegion(null);
+      setSelectedSearchPlace(item);
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     },
-    [gpsOrderedIdsRef, setOrderedIds],
+    [],
   );
 
   const clearSearch = useCallback(() => {
-    setActiveRegionName(null);
-    setRegionFilterIds(null);
+    setSelectedSearchPlace(null);
     Keyboard.dismiss();
     requestAnimationFrame(() => {
-      setOrderedIds(gpsOrderedIdsRef.current);
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
-  }, [gpsOrderedIdsRef, setOrderedIds]);
+  }, []);
 
   const renderCard = useCallback(
     ({ item: placeId }: { item: number }) => (
@@ -387,15 +393,13 @@ export default function ListeScreen() {
         )}
       </View>
 
-      {/* Przestrzeń pod kartą — city chips wyśrodkowane pionowo */}
+      {/* Przestrzeń pod kartą — city chips wyśrodkowane pionowo, zsynchronizowane z wyszukiwarką i kategorią */}
       <View style={styles.belowCards}>
         <CityChips
-          activeRegionName={activeRegionName}
+          activeRegionName={selectedRegion?.name ?? null}
           allPlaces={allPlaces}
-          filteredPlaces={categoryFilteredPlaces}
-          onSelectRegion={(region: Region | null) =>
-            handleLocationSelect(region ? { name: region.name, region } : null)
-          }
+          filteredPlaces={searchAndCategoryFilteredPlaces}
+          onSelectRegion={handleSelectRegionChip}
         />
       </View>
 
@@ -407,26 +411,7 @@ export default function ListeScreen() {
         <SearchSection
           ref={searchRef}
           selectedCategoryId={selectedCategoryId}
-          onSelectGeo={(item) => {
-            // Pin-Treffer → Detail-Screen (Paywall bei locked, direkt — auch
-            // ohne Konto). Geo-Treffer (Stadt) → bisheriges Verhalten:
-            // Liste auf nearby sortieren.
-            if (item.placeId) {
-              const isLocked = usePlacesStore.getState().isLockedPlace(item.placeId, isPro);
-              if (isLocked) {
-                router.push("/custom-paywall");
-                return;
-              }
-              router.push(`/place/${item.placeId}`);
-              return;
-            }
-            handleLocationSelect({
-              name: item.name,
-              lat: item.lat,
-              lon: item.lon,
-              fromSearch: true,
-            });
-          }}
+          onSelectGeo={handleSelectSearchGeo}
           onClear={clearSearch}
           bottomSectionHeight={bottomSectionHeight}
         />

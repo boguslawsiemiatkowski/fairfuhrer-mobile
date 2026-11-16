@@ -89,13 +89,21 @@ function stableHash01(place: DirectusOrte): number {
 //
 // For premium users both sets are empty (not needed — all places are open).
 
+const EMPTY_LOCKED_SET = new Set<number>();
+
 function computeSightsGating(
   places: DirectusOrte[],
   categories: DirectusKategorie[],
 ): { visibleSightsIds: Set<number>; lockedSightsIds: Set<number> } {
+  // Fast-path: gdy FREE_VISIBLE_RATIO >= 1, żaden pin nie jest zablokowany —
+  // unikamy kosztownego hashowania i sortowania setek miejsc przy każdym wywołaniu.
+  if (FREE_VISIBLE_RATIO >= 1) {
+    return { visibleSightsIds: EMPTY_LOCKED_SET, lockedSightsIds: EMPTY_LOCKED_SET };
+  }
+
   const sightsCategoryIds = new Set(categories.filter(isSightsCategory).map((c) => c.id));
   if (sightsCategoryIds.size === 0) {
-    return { visibleSightsIds: new Set(), lockedSightsIds: new Set() };
+    return { visibleSightsIds: EMPTY_LOCKED_SET, lockedSightsIds: EMPTY_LOCKED_SET };
   }
 
   const sights: DirectusOrte[] = [];
@@ -103,7 +111,7 @@ function computeSightsGating(
     if (placeHasSights(p, sightsCategoryIds)) sights.push(p);
   }
   if (sights.length === 0) {
-    return { visibleSightsIds: new Set(), lockedSightsIds: new Set() };
+    return { visibleSightsIds: EMPTY_LOCKED_SET, lockedSightsIds: EMPTY_LOCKED_SET };
   }
 
   const visibleCount = Math.ceil(FREE_VISIBLE_RATIO * sights.length);
@@ -114,6 +122,14 @@ function computeSightsGating(
   const visibleSightsIds = new Set(ranked.slice(0, visibleCount).map((x) => x.p.id));
   const lockedSightsIds = new Set(ranked.slice(visibleCount).map((x) => x.p.id));
   return { visibleSightsIds, lockedSightsIds };
+}
+
+function buildPlacesMap(places: DirectusOrte[]): Map<number, DirectusOrte> {
+  const map = new Map<number, DirectusOrte>();
+  for (const p of places) {
+    map.set(p.id, p);
+  }
+  return map;
 }
 
 // ─── Pobieranie z Directusa ──────────────────────────────────────────────────
@@ -184,6 +200,8 @@ async function fetchFromDirectus(): Promise<DirectusFetchResult> {
 
 interface PlacesState {
   places: DirectusOrte[];
+  placesById: Map<number, DirectusOrte>;
+  lockedSightsIds: Set<number>;
   categories: DirectusKategorie[];
   einstellungen: DirectusEinstellungen | null;
   status: "idle" | "loading" | "success" | "error";
@@ -204,7 +222,7 @@ interface PlacesState {
   isLockedPlace: (placeId: number, isPro: boolean) => boolean;
   // isPro decyduje, czy przy braku sieci wolno użyć cache offline —
   // offline to funkcja premium, więc dla nie-premium fallback jest pomijany.
-  fetchAll: (isPro: boolean) => Promise<void>;
+  fetchAll: (isPro: boolean, force?: boolean) => Promise<void>;
   // Zapisuje aktualnie załadowane dane do lokalnego cache offline.
   // Wywoływane po udanym pobraniu paczki mapy offline (funkcja premium).
   cacheCurrentPlaces: () => Promise<void>;
@@ -217,64 +235,57 @@ interface PlacesState {
 
 export const usePlacesStore = create<PlacesState>((set, get) => ({
   places: [],
+  placesById: new Map(),
+  lockedSightsIds: EMPTY_LOCKED_SET,
   categories: [],
   einstellungen: null,
   status: "idle",
   error: null,
   isOffline: false,
 
-  getPlaceById: (id) => get().places.find((p) => p.id === id),
+  // O(1) odczyt po ID z prekomputowanej mapy (zamiast O(N) .find() przy każdym renderze)
+  getPlaceById: (id) => get().placesById.get(id),
 
-  // Deterministic visibility filter:
-  //   - Premium → all places
-  //   - Free   → all non-Sehenswertes places + exactly ceil(0.5 * N) of
-  //              the Sehenswertes places (N = total Sehenswertes count).
-  //              Selection is stable: sort by hash, take the smallest N50.
   getVisiblePlaces: (isPro) => {
-    const { places, categories } = get();
-    if (isPro) return places;
-
-    const { visibleSightsIds, lockedSightsIds } = computeSightsGating(places, categories);
-    if (visibleSightsIds.size === 0 && lockedSightsIds.size === 0) return places;
-
-    const sightsCategoryIds = new Set(categories.filter(isSightsCategory).map((c) => c.id));
-    return places.filter(
-      (p) => !placeHasSights(p, sightsCategoryIds) || visibleSightsIds.has(p.id),
-    );
+    const { places, lockedSightsIds } = get();
+    if (isPro || lockedSightsIds.size === 0) return places;
+    return places.filter((p) => !lockedSightsIds.has(p.id));
   },
 
-  // For map: returns ALL places (so locked pins still appear) plus the set
-  // of locked IDs so the map layer can route taps to paywall.
+  // O(1) — zwraca stabilną referencję Set zamiast przeliczać gating od nowa
   getAllPlacesWithLocked: (isPro) => {
-    const { places, categories } = get();
-    if (isPro) return { places, lockedIds: new Set() };
-
-    const { lockedSightsIds } = computeSightsGating(places, categories);
+    const { places, lockedSightsIds } = get();
+    if (isPro || lockedSightsIds.size === 0) {
+      return { places, lockedIds: EMPTY_LOCKED_SET };
+    }
     return { places, lockedIds: lockedSightsIds };
   },
 
+  // O(1) — sprawdzenie w prekomputowanym Set
   isLockedPlace: (placeId, isPro) => {
     if (isPro) return false;
-    const { places, categories } = get();
-    const { lockedSightsIds } = computeSightsGating(places, categories);
-    return lockedSightsIds.has(placeId);
+    return get().lockedSightsIds.has(placeId);
   },
 
-  fetchAll: async (isPro: boolean) => {
-    // Guard: nie startuj równoległych fetchów. Success blokuje NIE (żeby
-    // ekran błędu / pull-to-refresh / retry na powrocie sieci mogły
-    // wymusić świeże pobranie). Guards na "success" zamrażały stan
-    // "error" na zawsze — patrz Issue Sept 2026.
-    if (get().status === "loading") return;
+  fetchAll: async (isPro: boolean, force = false) => {
+    // Guard: nie startuj równoległych fetchów i nie przeładowuj ponownie,
+    // jeśli dane są już załadowane (chyba że wywołano wymuszone odświeżenie `force = true`
+    // lub poprzedni stan to `error`).
+    const currentStatus = get().status;
+    if (currentStatus === "loading") return;
+    if (!force && currentStatus === "success" && get().places.length > 0) return;
 
     set({ status: "loading", error: null });
 
     try {
       const { settings, places, categories } = await fetchFromDirectus();
+      const { lockedSightsIds } = computeSightsGating(places, categories);
 
       set({
         einstellungen: settings,
         places,
+        placesById: buildPlacesMap(places),
+        lockedSightsIds,
         categories,
         status: "success",
         isOffline: false,
@@ -285,9 +296,12 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
       // fizycznie istnieją na urządzeniu.
       const cached = isPro ? await loadPlacesCache() : null;
       if (cached) {
+        const { lockedSightsIds } = computeSightsGating(cached.places, cached.categories);
         set({
           einstellungen: cached.einstellungen,
           places: cached.places,
+          placesById: buildPlacesMap(cached.places),
+          lockedSightsIds,
           categories: cached.categories,
           status: "success",
           error: null,
@@ -309,9 +323,12 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
   refreshOfflineData: async () => {
     try {
       const { settings, places, categories } = await fetchFromDirectus();
+      const { lockedSightsIds } = computeSightsGating(places, categories);
       set({
         einstellungen: settings,
         places,
+        placesById: buildPlacesMap(places),
+        lockedSightsIds,
         categories,
         status: "success",
         error: null,

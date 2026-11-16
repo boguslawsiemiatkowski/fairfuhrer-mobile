@@ -117,6 +117,72 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ src }: AudioPlayerProps) {
+  const [readyToMountPlayer, setReadyToMountPlayer] = useState(false);
+
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true });
+    // Odrocz inicjalizację natywnego odtwarzacza i buforowanie strumienia MP3
+    // do momentu, aż wątek będzie bezczynny po otwarciu modala (zgodnie z RN 0.83+
+    // używamy requestIdleCallback zamiast przestarzałego InteractionManager).
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(() => {
+        setReadyToMountPlayer(true);
+      });
+      return () => cancelIdleCallback(id);
+    }
+    const timer = setTimeout(() => {
+      setReadyToMountPlayer(true);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!readyToMountPlayer) {
+    return (
+      <View style={styles.audioPlayer}>
+        <View style={styles.audioControls}>
+          <View style={styles.skipButton}>
+            <SkipBackIcon size={20} />
+          </View>
+          <View style={styles.playButton}>
+            <PlayIcon size={26} />
+          </View>
+          <View style={styles.skipButton}>
+            <SkipForwardIcon size={20} />
+          </View>
+        </View>
+        <View style={styles.progressContainer}>
+          <Text style={styles.timeText}>0:00</Text>
+          <View style={styles.trackTouchable}>
+            <View style={styles.track}>
+              <View style={[styles.trackFill, { width: "0%" }]} />
+              <View style={[styles.thumb, { left: "0%" }]} />
+            </View>
+          </View>
+          <Text style={styles.timeText}>0:00</Text>
+        </View>
+        <View style={styles.speedControl}>
+          {SPEED_OPTIONS.map((speed) => {
+            const isActive = speed === 1;
+            return (
+              <View
+                key={speed}
+                style={[styles.speedButton, isActive && styles.speedButtonActive]}
+              >
+                <Text style={[styles.speedButtonText, isActive && styles.speedButtonTextActive]}>
+                  {speed}x
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  return <AudioPlayerMounted src={src} />;
+}
+
+function AudioPlayerMounted({ src }: AudioPlayerProps) {
   const [trackWidth, setTrackWidth] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<SpeedOption>(1);
 
@@ -126,10 +192,6 @@ export function AudioPlayer({ src }: AudioPlayerProps) {
   const currentTime = status.currentTime ?? 0;
   const duration = status.duration ?? 0;
   const progress = duration > 0 ? currentTime / duration : 0;
-
-  useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true });
-  }, []);
 
   const handleTrackPress = useCallback(
     (e: GestureResponderEvent) => {

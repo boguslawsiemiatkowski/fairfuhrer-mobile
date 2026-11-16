@@ -48,14 +48,68 @@ function fileFor(kind: MediaKind, url: string): File {
   return new File(kindDir(kind), fileNameFromUrl(url));
 }
 
+const DIRECTUS_URL = process.env.EXPO_PUBLIC_DIRECTUS_URL ?? "";
+
+// Cache indeksów plików offline w pamięci RAM — zapobiega wielokrotnym
+// synchronicznym odwołaniom JSI do systemu plików (File.exists) podczas
+// renderowania ekranu szczegółów miejsca (PlaceScreen).
+const existingFilesCache: Record<MediaKind, Set<string> | null> = {
+  image: null,
+  audio: null,
+};
+
+function getExistingSet(kind: MediaKind): Set<string> {
+  const cached = existingFilesCache[kind];
+  if (cached !== null) return cached;
+  const set = new Set<string>();
+  try {
+    const dir = kindDir(kind);
+    if (dir.exists) {
+      for (const entry of dir.list()) {
+        if (entry instanceof File) {
+          set.add(entry.name);
+        }
+      }
+    }
+  } catch {
+    // Brak katalogu — pusty Set
+  }
+  existingFilesCache[kind] = set;
+  return set;
+}
+
+function invalidateExistingCache(kind?: MediaKind): void {
+  if (kind) {
+    existingFilesCache[kind] = null;
+  } else {
+    existingFilesCache.image = null;
+    existingFilesCache.audio = null;
+  }
+}
+
+/**
+ * Dla zdalnych obrazów z Directus dodaje parametry transformacji (width/quality),
+ * aby telefon nie pobierał wielomegabajtowych plików oryginalnych (4000x3000px).
+ */
+function optimizeRemoteImageUrl(url: string, maxWidth = 900): string {
+  if (
+    DIRECTUS_URL &&
+    url.startsWith(`${DIRECTUS_URL}/assets/`) &&
+    !url.includes("?")
+  ) {
+    return `${url}?width=${maxWidth}&quality=80&withoutEnlargement=true`;
+  }
+  return url;
+}
+
 // ─── Resolver ────────────────────────────────────────────────────────────────
 
 /**
  * Zwraca lokalną ścieżkę `file://`, jeśli medium spod `remoteUrl` jest
- * scache'owane offline; w przeciwnym razie zwraca oryginalny `remoteUrl`.
+ * scache'owane offline; w przeciwnym razie zwraca zoptymalizowany `remoteUrl`.
  *
- * Synchroniczna — `File.exists` to natywna właściwość, więc bezpieczna do
- * wywołania w trakcie renderu komponentu.
+ * Korzysta z indeksu w pamięci RAM (O(1)), dzięki czemu nie blokuje wątku JS
+ * operacjami I/O podczas otwierania karty Audiopinu.
  */
 export function resolveMediaUri(
   remoteUrl: string | null | undefined,
@@ -63,10 +117,14 @@ export function resolveMediaUri(
 ): string | null {
   if (!remoteUrl) return null;
   try {
-    const file = fileFor(kind, remoteUrl);
-    return file.exists ? file.uri : remoteUrl;
+    const name = fileNameFromUrl(remoteUrl);
+    const existing = getExistingSet(kind);
+    if (existing.has(name)) {
+      return new File(kindDir(kind), name).uri;
+    }
+    return kind === "image" ? optimizeRemoteImageUrl(remoteUrl) : remoteUrl;
   } catch {
-    return remoteUrl;
+    return kind === "image" ? optimizeRemoteImageUrl(remoteUrl) : remoteUrl;
   }
 }
 
@@ -119,6 +177,7 @@ export async function downloadMedia(
     else progress.failed += 1;
     onProgress?.({ ...progress });
   }
+  invalidateExistingCache(kind);
   return progress;
 }
 
@@ -147,6 +206,8 @@ export function clearMediaCache(kind: MediaKind): void {
     if (dir.exists) dir.delete();
   } catch {
     // Brak katalogu / błąd — traktujemy jako zakończone.
+  } finally {
+    invalidateExistingCache(kind);
   }
 }
 
@@ -172,5 +233,7 @@ export function clearAllMediaCache(): void {
     if (root.exists) root.delete();
   } catch {
     // Brak katalogu / błąd — traktujemy jako zakończone.
+  } finally {
+    invalidateExistingCache();
   }
 }

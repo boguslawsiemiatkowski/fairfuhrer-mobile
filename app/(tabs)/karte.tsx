@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Mapbox, {
@@ -9,22 +9,25 @@ import Mapbox, {
   ShapeSource,
   CircleLayer,
   SymbolLayer,
+  LineLayer,
   Images,
   Image as MapImage,
 } from "@rnmapbox/maps";
 import type { ComponentRef } from "react";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
 import { useTabGpsCenter } from "@/hooks/useTabGpsCenter";
 import { withPositionTimeout } from "@/lib/location";
 import { usePlacesStore } from "@/stores/placesStore";
+import { useRouteStore } from "@/stores/routeStore";
 import { useAuth } from "@/context/AuthContext";
 import type { DirectusOrte } from "@/types";
 import HomeHeader from "@/components/HomeHeader";
 import { CategoryIcon, CATEGORY_COLORS, categoryColorFor } from "@/components/CategoryIcon";
 import { KategorieBar } from "@/components/KategorieBar";
 import { SearchSection, type SearchSectionHandle } from "@/components/SearchSection";
+import { MapRouteOverlay } from "@/components/MapRouteOverlay";
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? "";
 
@@ -81,62 +84,86 @@ function placesToGeoJSON(
   };
 }
 
+const EMPTY_LINE_GEOJSON: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+const EMPTY_POINT_GEOJSON: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+// Memoizowane ikony kategorii dla Mapboxa — zapobiega ponownej rasteryzacji
+// widoków React na tekstury GPU przy zmianach stanu ekranu.
+const MapPinImages = React.memo(function MapPinImages() {
+  return (
+    <Images>
+      {ICON_CATEGORY_IDS.map((id) => (
+        <MapImage key={id} name={`cat-${id}`}>
+          <CategoryIcon
+            categoryId={id}
+            color={categoryColorFor({ id, Farbe: CATEGORY_COLORS[id] })}
+            size={ICON_SIZE}
+          />
+        </MapImage>
+      ))}
+      <MapImage name={ICON_NAME_DEFAULT}>
+        <CategoryIcon categoryId={-1} color={DEFAULT_COLOR} size={ICON_SIZE} />
+      </MapImage>
+    </Images>
+  );
+});
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function KarteScreen() {
   const router = useRouter();
-  const pathname = usePathname();
   const searchRef = useRef<SearchSectionHandle>(null);
-  // Wenn der Nutzer von einem modal-Screen (Pin-Detail oder Paywall) zurück
-  // zur Karte kommt, sollen die Such-Vorschläge nicht weiter über der Karte
-  // hängen. Zachowujemy jednak wpisany tekst, zeby wybor pozostawal widoczny.
-  useEffect(() => {
-    if (pathname === "/karte" || pathname === "/(tabs)/karte") {
-      searchRef.current?.hideSuggestions();
-    }
-  }, [pathname]);
-  const {
-    categories: allCategories,
-    einstellungen,
-    status,
-    isOffline,
-    fetchAll,
-    getAllPlacesWithLocked,
-  } = usePlacesStore();
+
+  const allCategories = usePlacesStore((s) => s.categories);
+  const einstellungen = usePlacesStore((s) => s.einstellungen);
+  const status = usePlacesStore((s) => s.status);
+  const isOffline = usePlacesStore((s) => s.isOffline);
+  const allPlaces = usePlacesStore((s) => s.places);
+  const lockedSightsIds = usePlacesStore((s) => s.lockedSightsIds);
+
   const { isPro } = useAuth();
-  // All Sehenswertes pins shown on map; locked ones open paywall on tap.
-  const { places: allPlaces, lockedIds } = useMemo(
-    () => getAllPlacesWithLocked(isPro),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getAllPlacesWithLocked, isPro, status],
+  const lockedIds = useMemo(
+    () => (isPro ? new Set<number>() : lockedSightsIds),
+    [isPro, lockedSightsIds],
   );
   const isLoading = status === "loading" || status === "idle";
+
+  // Stan wbudowanego Routenplanera (Mapbox)
+  const routeOrigin = useRouteStore((s) => s.origin);
+  const routeDestination = useRouteStore((s) => s.destination);
+  const routeResult = useRouteStore((s) => s.routeResult);
+  const routeStatus = useRouteStore((s) => s.status);
+  const focusTarget = useRouteStore((s) => s.focusTarget);
+  const fitBoundsTrigger = useRouteStore((s) => s.fitBoundsTrigger);
+  const clearFocusTarget = useRouteStore((s) => s.clearFocusTarget);
+  const pickOriginOnMap = useRouteStore((s) => s.pickOriginOnMap);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
   const { center: cameraCenter, zoom: cameraZoom } = useTabGpsCenter(status === "success");
   const userLocationRef = useRef<[number, number] | null>(null);
-  // Diagnostyka: potwierdza czy natywny silnik lokalizacji Mapboxa w ogóle
-  // dostarcza fixa (puck). Jeśli w Sentry nie ma tego breadcrumba, puck jest
-  // martwy na poziomie natywnym/urządzenia.
   const puckSeenRef = useRef(false);
   const shapeSourceRef = useRef<ComponentRef<typeof ShapeSource>>(null);
   const cameraRef = useRef<Camera>(null);
 
-  useEffect(() => {
-    fetchAll(isPro);
-  }, [fetchAll, isPro]);
-
-  // GPS-Position kommt asynchron. Da die Kamera imperativ ist (defaultSettings
-  // greift nur einmal beim Mount), muss die GPS-Position per setCamera
-  // nachgereicht werden. useTabGpsCenter liefert center/zoom genau einmal —
-  // nach dem ersten Wert ist gpsAppliedRef gesetzt, damit ein späterer
-  // Suchergebnis-Sprung nicht überschrieben wird.
+  // GPS-Position kommt asynchron.
   const gpsAppliedRef = useRef(false);
   useEffect(() => {
     if (gpsAppliedRef.current) return;
     if (cameraCenter[0] === 10.0 && cameraCenter[1] === 51.0) return; // Default
     gpsAppliedRef.current = true;
+    // Nie nadpisuj widoku, jeśli użytkownik właśnie przeszedł z karty pinu
+    // („Pin auf der Karte öffnen” lub aktywna trasa)
+    if (useRouteStore.getState().focusTarget || useRouteStore.getState().routeResult) {
+      return;
+    }
     cameraRef.current?.setCamera({
       centerCoordinate: cameraCenter,
       zoomLevel: cameraZoom,
@@ -144,6 +171,81 @@ export default function KarteScreen() {
       animationDuration: 800,
     });
   }, [cameraCenter, cameraZoom]);
+
+  // Obsługa wycentrowania kamery na wybranym pinie („Pin auf der FairFührer-Karte öffnen”)
+  useEffect(() => {
+    if (!focusTarget) return;
+    cameraRef.current?.setCamera({
+      centerCoordinate: focusTarget.coords,
+      zoomLevel: focusTarget.zoomLevel,
+      animationMode: "flyTo",
+      animationDuration: 650,
+    });
+    clearFocusTarget();
+  }, [focusTarget, clearFocusTarget]);
+
+  // Dopasowanie kamery (fitBounds) do wyznaczonej trasy Mapbox
+  useEffect(() => {
+    if (!routeResult || !routeOrigin || !routeDestination?.location?.coordinates) return;
+    const coords = routeResult.geometry.coordinates as [number, number][];
+    if (coords.length === 0) return;
+
+    let minLon = routeOrigin.coords[0];
+    let maxLon = routeOrigin.coords[0];
+    let minLat = routeOrigin.coords[1];
+    let maxLat = routeOrigin.coords[1];
+
+    const extend = (pt: [number, number]) => {
+      if (pt[0] < minLon) minLon = pt[0];
+      if (pt[0] > maxLon) maxLon = pt[0];
+      if (pt[1] < minLat) minLat = pt[1];
+      if (pt[1] > maxLat) maxLat = pt[1];
+    };
+
+    extend(routeDestination.location.coordinates);
+    for (const c of coords) {
+      extend(c);
+    }
+
+    cameraRef.current?.fitBounds(
+      [maxLon, maxLat],
+      [minLon, minLat],
+      [140, 48, 160, 48],
+      750,
+    );
+  }, [routeResult, routeOrigin, routeDestination, fitBoundsTrigger]);
+
+  // GeoJSON dla linii trasy oraz punktu startowego (START)
+  const routeGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
+    if (!routeResult) return EMPTY_LINE_GEOJSON;
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: routeResult.geometry,
+        },
+      ],
+    };
+  }, [routeResult]);
+
+  const routeOriginGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
+    if (!routeOrigin) return EMPTY_POINT_GEOJSON;
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { label: "Start" },
+          geometry: {
+            type: "Point",
+            coordinates: routeOrigin.coords,
+          },
+        },
+      ],
+    };
+  }, [routeOrigin]);
 
   // GeoJSON — przeliczany tylko gdy zmienia się lista lub filtr
   const geoJSON = useMemo(() => {
@@ -157,38 +259,16 @@ export default function KarteScreen() {
   }, [allPlaces, lockedIds, selectedCategoryId]);
 
   const handleSelectGeo = useCallback(
-    (item: { name: string; lat: number; lon: number; isLocalPlace: boolean; placeId?: number }) => {
-      // Pin-Treffer → Detail-Screen öffnen (oder Paywall, falls gesperrt).
-      // Geografischer Treffer (Stadt/Region) → nur Kamera zoomen.
-      // Hinweis: bei gesperrten Pins geht es direkt zum Paywall — auch ohne
-      // Konto. Die Konto-Anforderung wird erst nach der Plan-Auswahl im
-      // Paywall geprüft (saubere Konversion: Nutzer sieht zuerst den Wert,
-      // dann den Anmelde-Schritt).
-      if (item.placeId) {
-        // Karte zuerst auf den Pin zoomen, damit nach dem Schließen des
-        // Detail-Modals der Pin sichtbar zentriert ist.
-        cameraRef.current?.setCamera({
-          centerCoordinate: [item.lon, item.lat],
-          zoomLevel: 16,
-          animationMode: "flyTo",
-          animationDuration: 600,
-        });
-        const isLocked = lockedIds.has(item.placeId);
-        if (isLocked) {
-          router.push("/custom-paywall");
-          return;
-        }
-        router.push(`/place/${item.placeId}`);
-        return;
-      }
+    (item: { name: string; lat: number; lon: number; isLocalPlace: boolean; cityName?: string }) => {
+      searchRef.current?.hideSuggestions();
       cameraRef.current?.setCamera({
         centerCoordinate: [item.lon, item.lat],
-        zoomLevel: item.isLocalPlace ? 16 : 13,
+        zoomLevel: 13,
         animationMode: "flyTo",
         animationDuration: 800,
       });
     },
-    [lockedIds, router],
+    [],
   );
 
   const handleMapPress = useCallback(
@@ -223,21 +303,42 @@ export default function KarteScreen() {
         return;
       }
 
-      // Pojedynczy pin — locked otwiera paywall, odblokowany otwiera szczegóły
+      // Pojedynczy pin — w trybie wyboru punktu startowego trasy ustawia ten pin jako Start;
+      // w normalnym trybie otwiera szczegóły (lub paywall, gdy zablokowany)
       const placeId = feature.properties.placeId as number;
       const isLocked = feature.properties.locked === 1;
       if (!placeId) return;
 
+      if (useRouteStore.getState().status === "picking-on-map") {
+        const clickedPlace = usePlacesStore.getState().placesById.get(placeId);
+        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+        void pickOriginOnMap(coords, clickedPlace);
+        return;
+      }
+
+      searchRef.current?.hideSuggestions();
+
       if (isLocked) {
-        // Direkt zum Paywall — auch ohne Konto. Login wird erst nach
-        // Plan-Auswahl im Paywall verlangt.
         router.push("/custom-paywall");
         return;
       }
 
       router.push(`/place/${placeId}`);
     },
-    [router, cameraZoom],
+    [router, cameraZoom, pickOriginOnMap],
+  );
+
+  const handleBlankMapPress = useCallback(
+    (feature: GeoJSON.Feature) => {
+      if (useRouteStore.getState().status !== "picking-on-map") return;
+      if (feature?.geometry?.type === "Point") {
+        const coords = feature.geometry.coordinates as [number, number];
+        if (Array.isArray(coords) && coords.length >= 2) {
+          void pickOriginOnMap([coords[0], coords[1]]);
+        }
+      }
+    },
+    [pickOriginOnMap],
   );
 
   return (
@@ -256,6 +357,9 @@ export default function KarteScreen() {
 
       {/* Mapa */}
       <View style={styles.mapArea}>
+        {/* Nakładka wbudowanego Routenplanera (widoczna gdy aktywna jest trasa lub wybór punktu) */}
+        <MapRouteOverlay />
+
         {isLoading ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color="#fc6c14" />
@@ -266,11 +370,8 @@ export default function KarteScreen() {
             styleURL={Mapbox.StyleURL.Street}
             localizeLabels={{ locale: "de" }}
             compassEnabled
+            onPress={handleBlankMapPress}
           >
-            {/* Kamera imperatywna: defaultSettings ustawia tylko pozycję
-                startową. Wszystkie ruchy (GPS, wybór z wyszukiwarki) idą przez
-                cameraRef.setCamera — kontrolowane propsy centerCoordinate/
-                zoomLevel ściągałyby widok z powrotem przy re-renderze. */}
             <Camera
               ref={cameraRef}
               defaultSettings={{
@@ -281,27 +382,51 @@ export default function KarteScreen() {
               animationDuration={800}
             />
 
-            {/* Ikony pinów — rejestrowane pod nazwami, do których odwołuje się
-                `iconImage` w warstwie symboli. Renderujemy ten sam komponent,
-                co pasek kategorii, więc ikona na mapie i ikona przy nazwie
-                kategorii nie mogą się rozjechać. */}
-            <Images>
-              {ICON_CATEGORY_IDS.map((id) => (
-                <MapImage key={id} name={`cat-${id}`}>
-                  <CategoryIcon
-                    categoryId={id}
-                    color={categoryColorFor({ id, Farbe: CATEGORY_COLORS[id] })}
-                    size={ICON_SIZE}
-                  />
-                </MapImage>
-              ))}
-              {/* -1 = ID bez własnej ikony → CategoryIcon rysuje generyczny
-                  pin (DEFAULT_ICON_PATHS). null wzięłoby ikonę „alle
-                  Kategorien", co na pojedynczym pinie byłoby mylące. */}
-              <MapImage name={ICON_NAME_DEFAULT}>
-                <CategoryIcon categoryId={-1} color={DEFAULT_COLOR} size={ICON_SIZE} />
-              </MapImage>
-            </Images>
+            <MapPinImages />
+
+            {/* Warstwa wyznaczonej trasy Mapbox (pod pinami, jak na Webie) */}
+            <ShapeSource id="fairfuehrer-route-source" shape={routeGeoJSON}>
+              <LineLayer
+                id="fairfuehrer-route-casing"
+                style={{
+                  lineColor: "#18222f",
+                  lineWidth: 9,
+                  lineOpacity: 0.92,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
+              <LineLayer
+                id="fairfuehrer-route-line"
+                style={{
+                  lineColor: "#fc6c14",
+                  lineWidth: 5,
+                  lineOpacity: 1,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
+            </ShapeSource>
+
+            {/* Punkt startowy trasy (START) */}
+            <ShapeSource id="fairfuehrer-route-origin" shape={routeOriginGeoJSON}>
+              <CircleLayer
+                id="fairfuehrer-route-origin-outer"
+                style={{
+                  circleRadius: 10,
+                  circleColor: "#18222f",
+                  circleStrokeWidth: 2.5,
+                  circleStrokeColor: "#ffffff",
+                }}
+              />
+              <CircleLayer
+                id="fairfuehrer-route-origin-inner"
+                style={{
+                  circleRadius: 4.5,
+                  circleColor: "#fc6c14",
+                }}
+              />
+            </ShapeSource>
 
             {/* Jeden source dla wszystkich miejsc — klastry natywnie w GPU */}
             <ShapeSource

@@ -182,7 +182,7 @@ export default function AppDrawer({ visible, onClose }: Props) {
     // übertragen. Der Sync-Call ist fire-and-forget — Fehler landen in
     // Sentry, ohne das Refresh-Ergebnis zu blockieren.
     const syncPromise = session ? syncPremiumToWeb() : Promise.resolve();
-    await Promise.all([fetchAll(isPro), syncPromise]);
+    await Promise.all([fetchAll(isPro, true), syncPromise]);
     const finalStatus = usePlacesStore.getState().status;
     const isOffline = usePlacesStore.getState().isOffline;
     setRefreshing(false);

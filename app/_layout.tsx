@@ -144,8 +144,10 @@ function RootLayoutNav() {
           options={{
             presentation: "modal",
             animation: "slide_from_bottom",
-            gestureEnabled: true,
-            gestureDirection: "vertical",
+            // Wyłączamy natywne zamykanie modala gestem pionowym na całym ekranie,
+            // aby użytkownik mógł swobodnie przewijać zawartość odtwarzacza i playlistę
+            // w górę i w dół. Do minimalizowania i zamykania służą duże przyciski w nagłówku.
+            gestureEnabled: false,
           }}
         />
       </Stack>

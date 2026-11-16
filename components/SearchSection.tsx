@@ -15,27 +15,23 @@ import type { DirectusOrte } from "@/types";
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? "";
 
-// Suche durchsucht parallel Pins (lokal aus placesStore) UND Städte/Regionen
-// (Mapbox-API). Pin-Treffer landen zuerst in der Liste, dann geografische
-// Treffer. Bei Offline werden nur lokale Pins angezeigt.
+// Wyszukiwarka skupia się wyłącznie na miejscach geograficznych (miastach,
+// miejscowościach, regionach), a nie na pojedynczych audiopinach:
+// 1. Przeszukuje miasta z katalogu FairFührer (z liczbą dostępnych pinów w danym mieście),
+// 2. Równolegle odpytuje Mapbox Geocoding API o miejscowości i regiony (DE/AT/CH).
 
-// `placeId` ist gesetzt, wenn das Suggestion ein konkreter Pin ist — der
-// Parent (karte.tsx / index.tsx) entscheidet dann, ob er das Detail-Screen
-// öffnet oder nur die Karte zoomt. `isLocalPlace` bleibt für die Zoom-Stufe.
 export interface Suggestion {
   name: string;
   place_formatted: string;
   lat: number;
   lon: number;
   isLocalPlace: boolean;
-  placeId?: number;
+  /** Nazwa miasta z katalogu (jeśli wybrano miasto posiadające piny w bazie). */
+  cityName?: string;
 }
 
 export interface SearchSectionHandle {
   clear: () => void;
-  // Zamyka tylko dropdown z sugestiami, ale ZACHOWUJE tekst wpisany w polu.
-  // Uzywane przy powrocie na tab z innego ekranu — user widzi ze wybor
-  // (np. "Lindau") jest nadal aktywny, ale nie widzi wiszacego dropdownu.
   hideSuggestions: () => void;
 }
 
@@ -49,30 +45,76 @@ function normalizeSearch(input: string): string {
     .trim();
 }
 
-function searchLocalPlaces(
+/**
+ * Wyszukuje miejscowości (Stadt) występujące w bazie FairFührer (a nie pojedyncze piny).
+ * Zwraca unikalne miasta wraz ze współrzędnymi środka i liczbą pinów (z uwzględnieniem wybranej kategorii).
+ */
+function searchCatalogCities(
   text: string,
   places: DirectusOrte[],
   selectedCategoryId: number | null,
 ): Suggestion[] {
   const q = normalizeSearch(text);
   if (!q) return [];
-  return places
-    .filter((p) => {
-      if (!p.location?.coordinates) return false;
-      if (selectedCategoryId !== null) {
-        const matchesCategory = p.Kategorie?.some((k) => k.Kategorie_id?.id === selectedCategoryId);
-        if (!matchesCategory) return false;
-      }
-      const haystack = normalizeSearch(`${p.Name ?? ""} ${p.Stadt ?? ""} ${p.Adresse ?? ""}`);
-      return haystack.includes(q);
-    })
-    .map((p) => ({
-      name: p.Name ?? "",
-      place_formatted: [p.Stadt, p.Land].filter(Boolean).join(", "),
-      lat: p.location!.coordinates[1],
-      lon: p.location!.coordinates[0],
-      isLocalPlace: true,
-      placeId: p.id,
+
+  const cityMap = new Map<
+    string,
+    {
+      name: string;
+      land: string;
+      latSum: number;
+      lonSum: number;
+      coordCount: number;
+      matchingCount: number;
+    }
+  >();
+
+  for (const p of places) {
+    const rawCity = p.Stadt?.trim();
+    if (!rawCity) continue;
+    const normCity = normalizeSearch(rawCity);
+    if (!normCity.includes(q)) continue;
+
+    const matchesCategory =
+      selectedCategoryId === null ||
+      Boolean(p.Kategorie?.some((k) => k.Kategorie_id?.id === selectedCategoryId));
+
+    let entry = cityMap.get(normCity);
+    if (!entry) {
+      entry = {
+        name: rawCity,
+        land: p.Land?.trim() ?? "",
+        latSum: 0,
+        lonSum: 0,
+        coordCount: 0,
+        matchingCount: 0,
+      };
+      cityMap.set(normCity, entry);
+    }
+
+    if (p.location?.coordinates) {
+      entry.lonSum += p.location.coordinates[0];
+      entry.latSum += p.location.coordinates[1];
+      entry.coordCount += 1;
+    }
+    if (matchesCategory) {
+      entry.matchingCount += 1;
+    }
+  }
+
+  return Array.from(cityMap.values())
+    .filter((c) => c.coordCount > 0 && c.matchingCount > 0)
+    .sort((a, b) => b.matchingCount - a.matchingCount || a.name.localeCompare(b.name, "de"))
+    .slice(0, 6)
+    .map((c) => ({
+      name: c.name,
+      place_formatted: [c.land, `${c.matchingCount} ${c.matchingCount === 1 ? "Ort" : "Orte"}`]
+        .filter(Boolean)
+        .join(" · "),
+      lat: c.latSum / c.coordCount,
+      lon: c.lonSum / c.coordCount,
+      isLocalPlace: false,
+      cityName: c.name,
     }));
 }
 
@@ -82,7 +124,7 @@ interface SearchSectionProps {
     lat: number;
     lon: number;
     isLocalPlace: boolean;
-    placeId?: number;
+    cityName?: string;
   }) => void;
   onClear: () => void;
   bottomSectionHeight: number;
@@ -100,15 +142,11 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
     const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Aktuelle Kategorie als Ref — verhindert stale closures in setTimeout,
-    // wenn die Kategorie sich nach Tastenanschlag aber vor dem Fetch ändert.
     const categoryRef = useRef<number | null>(selectedCategoryId);
     useEffect(() => {
       categoryRef.current = selectedCategoryId;
     }, [selectedCategoryId]);
 
-    // Eltern-Komponente (karte.tsx, index.tsx) kann das Search-Feld zurück-
-    // setzen — etwa nachdem ein Pin-Detail oder Paywall geschlossen wurde.
     useImperativeHandle(ref, () => ({
       clear: () => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -124,7 +162,6 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
         setShowSuggestions(false);
         setIsFetchingSuggestions(false);
         Keyboard.dismiss();
-        // Zachowujemy `query` — user widzi ze wybor jest aktywny.
       },
     }));
 
@@ -138,46 +175,46 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
       }
       setIsFetchingSuggestions(true);
       debounceRef.current = setTimeout(async () => {
-        // categoryRef immer aktuell lesen — stale-closure-sicher.
         const currentCategory = categoryRef.current;
-        const localPins = searchLocalPlaces(
+        const catalogCities = searchCatalogCities(
           text,
           usePlacesStore.getState().places,
           currentCategory,
         );
+        const seenCityNames = new Set(catalogCities.map((c) => normalizeSearch(c.name)));
 
         let geoPlaces: Suggestion[] = [];
         try {
           const url = `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(
             text,
-          )}&language=de&limit=5&types=country,region,district,place&autocomplete=true&access_token=${MAPBOX_TOKEN}`;
+          )}&country=de,at,ch&language=de&limit=6&types=place,locality,district,region&autocomplete=true&access_token=${MAPBOX_TOKEN}`;
           const res = await fetch(url);
           const json = await res.json();
-          geoPlaces = (json.features ?? []).map((f: Record<string, unknown>) => {
-            const props = f.properties as Record<string, unknown>;
-            const geom = f.geometry as { coordinates: [number, number] };
-            return {
-              name: props.name as string,
-              place_formatted: (props.place_formatted ?? "") as string,
-              lat: geom.coordinates[1],
-              lon: geom.coordinates[0],
-              isLocalPlace: false,
-            };
-          });
+          geoPlaces = (json.features ?? [])
+            .map((f: Record<string, unknown>) => {
+              const props = f.properties as Record<string, unknown>;
+              const geom = f.geometry as { coordinates: [number, number] };
+              const name = (props.name as string) ?? "";
+              return {
+                name,
+                place_formatted: (props.place_formatted ?? "") as string,
+                lat: geom.coordinates[1],
+                lon: geom.coordinates[0],
+                isLocalPlace: false,
+              };
+            })
+            .filter((g: Suggestion) => g.name && !seenCityNames.has(normalizeSearch(g.name)));
         } catch {
-          // Kein Internet → nur lokale Pins.
+          // Offline — zostają miasta z lokalnego katalogu.
         }
 
-        const combined = [...localPins, ...geoPlaces];
+        const combined = [...catalogCities, ...geoPlaces];
         setGeoSuggestions(combined);
         setShowSuggestions(combined.length > 0);
         setIsFetchingSuggestions(false);
-      }, 300);
+      }, 280);
     };
 
-    // Wenn der Nutzer die Kategorie wechselt, während der Such-Query bereits
-    // gesetzt ist — sofort neu suchen, damit die Liste die neue Kategorie
-    // widerspiegelt.
     useEffect(() => {
       if (query.trim().length >= 2) {
         runSearch(query);
@@ -195,7 +232,7 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
         lat: item.lat,
         lon: item.lon,
         isLocalPlace: item.isLocalPlace,
-        placeId: item.placeId,
+        cityName: item.cityName,
       });
     };
 
@@ -211,10 +248,8 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
         <View style={styles.searchBar}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Suche…"
-            // Voll deckendes Weiß auf dem orangenen Balken — wie auf der
-            // Website. Vorher 70 % Deckkraft, was auf #fc6c14 ausgewaschen wirkte.
-            placeholderTextColor="#fff"
+            placeholder="Suchen…"
+            placeholderTextColor="rgba(255, 255, 255, 0.75)"
             value={query}
             onChangeText={(t) => {
               setQuery(t);
@@ -251,9 +286,9 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
               bounces={false}
               showsVerticalScrollIndicator
             >
-              {geoSuggestions.map((s) => (
+              {geoSuggestions.map((s, idx) => (
                 <TouchableOpacity
-                  key={s.placeId !== undefined ? `pin-${s.placeId}` : `geo-${s.lat}-${s.lon}`}
+                  key={`geo-${s.name}-${s.lat}-${s.lon}-${idx}`}
                   style={styles.suggestionItem}
                   onPress={() => handleSelect(s)}
                   activeOpacity={0.7}
@@ -262,14 +297,10 @@ export const SearchSection = forwardRef<SearchSectionHandle, SearchSectionProps>
                     <View
                       style={[
                         styles.suggestionBadge,
-                        s.placeId !== undefined
-                          ? styles.suggestionBadgePin
-                          : styles.suggestionBadgeGeo,
+                        s.cityName ? styles.suggestionBadgePin : styles.suggestionBadgeGeo,
                       ]}
                     >
-                      <Text style={styles.suggestionBadgeText}>
-                        {s.placeId !== undefined ? "Pin" : "Ort"}
-                      </Text>
+                      <Text style={styles.suggestionBadgeText}>Ort</Text>
                     </View>
                     <Text style={styles.suggestionText} numberOfLines={1}>
                       {s.name}

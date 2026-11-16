@@ -62,17 +62,16 @@ function NextIcon({ size = 28 }: { size?: number }) {
 }
 function ChevronDown() {
   return (
-    <Svg width={28} height={28} viewBox="0 0 24 24">
-      <Polygon points="6,9 12,15 18,9" fill="#fff" />
+    <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
+      <Polygon points="5,8.5 12,15.5 19,8.5" fill="#fff" />
     </Svg>
   );
 }
 function CloseXIcon() {
   return (
-    <Svg width={24} height={24} viewBox="0 0 24 24">
-      <Circle cx="12" cy="12" r="12" fill="rgba(255,255,255,0.15)" />
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Polygon
-        points="8,7 12,11 16,7 17,8 13,12 17,16 16,17 12,13 8,17 7,16 11,12 7,8"
+        points="6.5,5 12,10.5 17.5,5 19,6.5 13.5,12 19,17.5 17.5,19 12,13.5 6.5,19 5,17.5 10.5,12 5,6.5"
         fill="#fff"
       />
     </Svg>
@@ -160,122 +159,146 @@ export default function PlayerScreen() {
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={s.container} edges={["top", "bottom"]}>
-        {/* ── Header ── */}
+        {/* ── Header (przyklejony na górze, duże przyciski minimalizowania i zamykania) ── */}
         <View style={s.header}>
-          <TouchableOpacity onPress={handleClose} style={s.headerBtn}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={s.headerBtn}
+            activeOpacity={0.75}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <ChevronDown />
           </TouchableOpacity>
           <View style={s.headerCenter}>
-            <Text style={s.headerLabel}>Tour</Text>
+            <Text style={s.headerLabel}>TOUR-PLAYLIST</Text>
             <Text style={s.headerTitle} numberOfLines={1}>
               {contextLabel}
             </Text>
           </View>
-          <TouchableOpacity onPress={handleStop} style={s.headerBtn}>
+          <TouchableOpacity
+            onPress={handleStop}
+            style={[s.headerBtn, s.headerBtnClose]}
+            activeOpacity={0.75}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <CloseXIcon />
           </TouchableOpacity>
         </View>
 
-        {/* ── Cover ── */}
-        <View style={s.coverWrap}>
-          {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={s.cover}
-              contentFit="cover"
-              transition={150}
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={[s.cover, s.coverPlaceholder]} />
-          )}
-        </View>
-
-        {/* ── Meta ── */}
-        <View style={s.meta}>
-          <Text style={s.trackTitle} numberOfLines={2}>
-            {currentPlace.Name}
-          </Text>
-          {currentPlace.Stadt && (
-            <Text style={s.trackCity}>
-              {currentPlace.Stadt}
-              {currentPlace.Land ? ` · ${currentPlace.Land}` : ""}
-            </Text>
-          )}
-          <Text style={s.trackPosition}>
-            {currentIndex + 1} / {queue.length}
-          </Text>
-        </View>
-
-        {/* ── Progress (touchable, seekable) ── */}
-        <View style={s.progressWrap}>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={handleSeek}
-            onLayout={handleTrackLayout}
-            style={s.progressTouchable}
-          >
-            <View style={s.progressBar}>
-              <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
-              <View style={[s.progressThumb, { left: `${progress * 100}%` }]} />
-            </View>
-          </TouchableOpacity>
-          <View style={s.progressTimes}>
-            <Text style={s.timeText}>{formatTime(currentTime)}</Text>
-            <Text style={s.timeText}>{formatTime(duration)}</Text>
+        {/* ── Główny ScrollView: okładka + odtwarzacz + lista pozycji przewijają się razem ── */}
+        <ScrollView
+          style={s.mainScroll}
+          contentContainerStyle={s.mainScrollContent}
+          showsVerticalScrollIndicator
+        >
+          {/* ── Cover ── */}
+          <View style={s.coverWrap}>
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={s.cover}
+                contentFit="cover"
+                transition={150}
+                cachePolicy="memory-disk"
+              />
+            ) : (
+              <View style={[s.cover, s.coverPlaceholder]} />
+            )}
           </View>
-        </View>
 
-        {/* ── Controls ── */}
-        <View style={s.controls}>
-          <TouchableOpacity
-            onPress={previous}
-            disabled={currentIndex === 0}
-            style={[s.ctrlBtn, currentIndex === 0 && s.ctrlBtnDisabled]}
-          >
-            <PrevIcon />
-          </TouchableOpacity>
+          {/* ── Meta ── */}
+          <View style={s.meta}>
+            <Text style={s.trackTitle} numberOfLines={2}>
+              {currentPlace.Name}
+            </Text>
+            {currentPlace.Stadt && (
+              <Text style={s.trackCity}>
+                {currentPlace.Stadt}
+                {currentPlace.Land ? ` · ${currentPlace.Land}` : ""}
+              </Text>
+            )}
+            <Text style={s.trackPosition}>
+              {currentIndex + 1} / {queue.length}
+            </Text>
+          </View>
 
-          <TouchableOpacity onPress={togglePlay} style={s.playBtn}>
-            {isPlaying ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
-          </TouchableOpacity>
+          {/* ── Progress (touchable, seekable) ── */}
+          <View style={s.progressWrap}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={handleSeek}
+              onLayout={handleTrackLayout}
+              style={s.progressTouchable}
+            >
+              <View style={s.progressBar}>
+                <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
+                <View style={[s.progressThumb, { left: `${progress * 100}%` }]} />
+              </View>
+            </TouchableOpacity>
+            <View style={s.progressTimes}>
+              <Text style={s.timeText}>{formatTime(currentTime)}</Text>
+              <Text style={s.timeText}>{formatTime(duration)}</Text>
+            </View>
+          </View>
 
-          <TouchableOpacity
-            onPress={next}
-            disabled={currentIndex >= queue.length - 1}
-            style={[s.ctrlBtn, currentIndex >= queue.length - 1 && s.ctrlBtnDisabled]}
-          >
-            <NextIcon />
-          </TouchableOpacity>
-        </View>
+          {/* ── Controls ── */}
+          <View style={s.controls}>
+            <TouchableOpacity
+              onPress={previous}
+              disabled={currentIndex === 0}
+              style={[s.ctrlBtn, currentIndex === 0 && s.ctrlBtnDisabled]}
+            >
+              <PrevIcon />
+            </TouchableOpacity>
 
-        {/* ── Queue ── */}
-        <View style={s.queueHeader}>
-          <Text style={s.queueTitle}>Als Nächstes</Text>
-        </View>
-        <ScrollView style={s.queueList} contentContainerStyle={s.queueContent}>
-          {queue.map((place, i) => {
-            const isCurrent = i === currentIndex;
-            return (
-              <TouchableOpacity
-                key={place.id}
-                style={[s.queueRow, isCurrent && s.queueRowActive]}
-                onPress={() => jumpTo(i)}
-              >
-                <Text style={[s.queueIdx, isCurrent && s.queueIdxActive]}>{i + 1}</Text>
-                <View style={s.queueInfo}>
-                  <Text style={[s.queueName, isCurrent && s.queueNameActive]} numberOfLines={1}>
-                    {place.Name}
-                  </Text>
-                  {place.Stadt && (
-                    <Text style={s.queueCity} numberOfLines={1}>
-                      {place.Stadt}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+            <TouchableOpacity onPress={togglePlay} style={s.playBtn}>
+              {isPlaying ? <PauseIcon size={36} /> : <PlayIcon size={36} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={next}
+              disabled={currentIndex >= queue.length - 1}
+              style={[s.ctrlBtn, currentIndex >= queue.length - 1 && s.ctrlBtnDisabled]}
+            >
+              <NextIcon />
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Queue (Als Nächstes) — przesuwa się w górę razem z resztą ekranu ── */}
+          <View style={s.queueSection}>
+            <View style={s.queueHeader}>
+              <Text style={s.queueTitle}>Als Nächstes ({queue.length} Orte)</Text>
+              <Text style={s.queueSubtitle}>Nach oben wischen für die gesamte Liste</Text>
+            </View>
+
+            <View style={s.queueContent}>
+              {queue.map((place, i) => {
+                const isCurrent = i === currentIndex;
+                return (
+                  <TouchableOpacity
+                    key={place.id}
+                    style={[s.queueRow, isCurrent && s.queueRowActive]}
+                    onPress={() => jumpTo(i)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[s.queueIdxBadge, isCurrent && s.queueIdxBadgeActive]}>
+                      <Text style={[s.queueIdx, isCurrent && s.queueIdxActive]}>{i + 1}</Text>
+                    </View>
+                    <View style={s.queueInfo}>
+                      <Text style={[s.queueName, isCurrent && s.queueNameActive]} numberOfLines={2}>
+                        {place.Name}
+                      </Text>
+                      {place.Stadt && (
+                        <Text style={[s.queueCity, isCurrent && s.queueCityActive]} numberOfLines={1}>
+                          {place.Stadt}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -315,36 +338,56 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderBottomWidth: 1.5,
+    borderBottomColor: "rgba(255,255,255,0.12)",
   },
   headerBtn: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.32)",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerCenter: { flex: 1, alignItems: "center" },
+  headerBtnClose: {
+    backgroundColor: "rgba(252,108,20,0.22)",
+    borderColor: "#fc6c14",
+  },
+  headerCenter: { flex: 1, alignItems: "center", paddingHorizontal: 10 },
   headerLabel: {
-    color: "#bbb",
+    color: "#fc6c14",
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
-    fontFamily: "FiraSansCondensed_400Regular",
+    fontFamily: "FiraSansCondensed_700Bold",
   },
   headerTitle: {
     color: "#fff",
-    fontSize: 15,
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontSize: 17,
+    fontFamily: "FiraSansCondensed_700Bold",
+    marginTop: 2,
+  },
+
+  mainScroll: {
+    flex: 1,
+  },
+  mainScrollContent: {
+    paddingBottom: 36,
   },
 
   coverWrap: {
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: 18,
+    marginBottom: 18,
   },
   cover: {
     width: COVER_SIZE,
     height: COVER_SIZE,
-    borderRadius: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.25)",
     backgroundColor: "#333",
   },
   coverPlaceholder: { backgroundColor: "#333" },
@@ -352,59 +395,56 @@ const s = StyleSheet.create({
   meta: {
     paddingHorizontal: 24,
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 18,
   },
   trackTitle: {
     color: "#fff",
-    fontSize: 22,
+    fontSize: 24,
     textAlign: "center",
-    fontFamily: "FiraSansCondensed_600SemiBold",
-    lineHeight: 28,
+    fontFamily: "FiraSansCondensed_700Bold",
+    lineHeight: 30,
   },
   trackCity: {
-    color: "#bbb",
-    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 15,
     marginTop: 6,
     fontFamily: "FiraSansCondensed_400Regular",
   },
   trackPosition: {
     color: "#fc6c14",
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 8,
     letterSpacing: 1,
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
   },
 
   progressWrap: {
     paddingHorizontal: 24,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   progressTouchable: {
-    // Wysokość touch-target 32px (bar ma 4px, reszta to padding wokół
-    // niego dla łatwiejszego tapnięcia). Rzeczywisty pasek wyśrodkowany.
     height: 32,
     justifyContent: "center",
   },
   progressBar: {
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 2,
-    // pozwól thumb'owi wystawać poza pasek
+    height: 5,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 3,
     overflow: "visible",
   },
   progressFill: {
-    height: 4,
+    height: 5,
     backgroundColor: "#fc6c14",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressThumb: {
     position: "absolute",
     top: -6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 17,
+    height: 17,
+    borderRadius: 9,
     backgroundColor: "#fc6c14",
-    marginLeft: -8,
+    marginLeft: -8.5,
     borderWidth: 2,
     borderColor: "#fff",
   },
@@ -424,7 +464,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 30,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   ctrlBtn: {
     width: 56,
@@ -438,6 +478,8 @@ const s = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     backgroundColor: "#fc6c14",
+    borderWidth: 2,
+    borderColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#fc6c14",
@@ -447,49 +489,88 @@ const s = StyleSheet.create({
     elevation: 6,
   },
 
+  queueSection: {
+    borderTopWidth: 1.5,
+    borderTopColor: "rgba(255,255,255,0.14)",
+    paddingTop: 18,
+  },
   queueHeader: {
-    paddingHorizontal: 24,
-    marginBottom: 6,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
   },
   queueTitle: {
-    color: "#bbb",
-    fontSize: 11,
-    letterSpacing: 1,
+    color: "#fc6c14",
+    fontSize: 13,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    fontFamily: "FiraSansCondensed_700Bold",
   },
-  queueList: { flex: 1 },
-  queueContent: { paddingHorizontal: 16, paddingBottom: 20 },
+  queueSubtitle: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    fontFamily: "FiraSansCondensed_400Regular",
+  },
+  queueContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
   queueRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 14,
     borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
-  queueRowActive: { backgroundColor: "rgba(252,108,20,0.15)" },
+  queueRowActive: {
+    backgroundColor: "rgba(252,108,20,0.2)",
+    borderColor: "#fc6c14",
+    borderWidth: 1.5,
+  },
+  queueIdxBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  queueIdxBadgeActive: {
+    backgroundColor: "#fc6c14",
+  },
   queueIdx: {
-    color: "#666",
-    width: 24,
-    textAlign: "center",
-    fontSize: 12,
-    fontFamily: "FiraSansCondensed_600SemiBold",
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 15,
+    fontFamily: "FiraSansCondensed_700Bold",
   },
-  queueIdxActive: { color: "#fc6c14" },
+  queueIdxActive: {
+    color: "#ffffff",
+  },
   queueInfo: { flex: 1 },
   queueName: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: "FiraSansCondensed_400Regular",
-  },
-  queueNameActive: {
+    color: "#ffffff",
+    fontSize: 18,
+    lineHeight: 23,
     fontFamily: "FiraSansCondensed_600SemiBold",
   },
+  queueNameActive: {
+    fontFamily: "FiraSansCondensed_700Bold",
+    color: "#ffffff",
+  },
   queueCity: {
-    color: "#888",
-    fontSize: 11,
-    marginTop: 2,
+    color: "rgba(255,255,255,0.68)",
+    fontSize: 14,
+    marginTop: 3,
     fontFamily: "FiraSansCondensed_400Regular",
+  },
+  queueCityActive: {
+    color: "#fc6c14",
+    fontFamily: "FiraSansCondensed_600SemiBold",
   },
 });

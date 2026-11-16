@@ -78,8 +78,7 @@ export function CityChips({
             activeOpacity={0.8}
           >
             <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-              {region.label}
-              {count > 0 ? ` (${count})` : ""}
+              {region.label} ({count})
             </Text>
           </TouchableOpacity>
         );

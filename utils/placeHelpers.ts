@@ -4,7 +4,8 @@ const DIRECTUS_URL = process.env.EXPO_PUBLIC_DIRECTUS_URL ?? "";
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 
 export function getImageUrl(place: DirectusOrte): string | null {
-  if (place.Titelbild) return `${DIRECTUS_URL}/assets/${place.Titelbild}`;
+  if (place.Titelbild)
+    return `${DIRECTUS_URL}/assets/${place.Titelbild}?width=640&quality=78&withoutEnlargement=true`;
   if (place.Hauptbild)
     return `${SUPABASE_URL}/storage/v1/object/public/media-files/places/images/main/${place.Hauptbild}`;
   return null;

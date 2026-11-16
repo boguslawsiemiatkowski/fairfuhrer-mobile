@@ -18,6 +18,7 @@ import Svg, { Line, Path, Circle, Polyline } from "react-native-svg";
 
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { CategoryIcon, categoryColorFor } from "@/components/CategoryIcon";
+import { RoutePlannerCard } from "@/components/RoutePlannerCard";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
 import { getMainImageUrl, getAudioUrl, getGalleryUrls } from "@/lib/mediaUrls";
@@ -464,9 +465,11 @@ export default function PlaceScreen() {
   const [paywallShown, setPaywallShown] = useState(false);
 
   const { isPro } = useAuth();
-  const place = usePlacesStore((s) => s.getPlaceById(Number(id)));
+  const placeIdNum = Number(id);
+  const place = usePlacesStore((s) => s.placesById.get(placeIdNum));
   const allPlaces = usePlacesStore((s) => s.places);
-  const isLocked = usePlacesStore((s) => s.isLockedPlace(Number(id), isPro));
+  const lockedSightsIds = usePlacesStore((s) => s.lockedSightsIds);
+  const isLocked = !isPro && lockedSightsIds.has(placeIdNum);
 
   // Deep-link guard: if someone navigates directly to a locked place (e.g.
   // shared URL), show the paywall immediately instead of the detail screen.
@@ -490,7 +493,7 @@ export default function PlaceScreen() {
       (p) =>
         p.id !== place.id &&
         p.location?.coordinates &&
-        !usePlacesStore.getState().isLockedPlace(p.id, isPro),
+        (isPro || !lockedSightsIds.has(p.id)),
     );
 
     const sameCity = place.Stadt
@@ -518,7 +521,7 @@ export default function PlaceScreen() {
     }
 
     return picked;
-  }, [place, allPlaces, isPro]);
+  }, [place, allPlaces, isPro, lockedSightsIds]);
 
   if (!place) {
     return (
@@ -549,29 +552,6 @@ export default function PlaceScreen() {
   const allLightboxImages = imageUrl
     ? [{ key: `main-${place.id}`, uri: imageUrl }, ...galleryImages]
     : galleryImages;
-
-  const handleOpenDirections = () => {
-    const coords = place.location?.coordinates;
-    const label = encodeURIComponent(place.Name);
-    if (coords) {
-      const [lon, lat] = coords;
-      const url =
-        Platform.OS === "ios"
-          ? `http://maps.apple.com/?daddr=${lat},${lon}&q=${label}`
-          : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
-      openExternalUrl(url, "Die Karten-App konnte nicht geöffnet werden.");
-      return;
-    }
-    if (place.Adresse) {
-      const query = encodeURIComponent(
-        [place.Name, place.Adresse, place.Stadt].filter(Boolean).join(", "),
-      );
-      openExternalUrl(
-        `https://www.google.com/maps/search/?api=1&query=${query}`,
-        "Die Karten-App konnte nicht geöffnet werden.",
-      );
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -790,56 +770,19 @@ export default function PlaceScreen() {
             </View>
           )}
 
-          {/* Sekcja „Lage & Route” w karcie Studio */}
+          {/* Sekcja „Lage & Routenplaner” — w 100% wewnątrz aplikacji (Mapbox) */}
           {(place.location?.coordinates || place.Adresse) && (
             <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Lage & Route</Text>
-              <View style={styles.locationCard}>
-                <View style={styles.locationCardHeader}>
-                  <View style={styles.locationIconWrap}>
-                    <CategoryIcon
-                      categoryId={firstCategory?.id ?? null}
-                      color={headerColor}
-                      strokeColor="#fff"
-                      size={42}
-                    />
-                  </View>
-                  <View style={styles.locationTextWrap}>
-                    <Text style={styles.locationPlaceName}>{place.Name}</Text>
-                    {(place.Adresse || place.Stadt) && (
-                      <Text style={styles.locationAddressText}>
-                        {[place.Adresse, place.Stadt, place.Land].filter(Boolean).join(", ")}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-
-                <View style={styles.locationActions}>
-                  <TouchableOpacity
-                    style={styles.routePrimaryBtn}
-                    onPress={handleOpenDirections}
-                    activeOpacity={0.85}
-                  >
-                    <View style={styles.routePrimaryBtnLabel}>
-                      <NavigationSvgIcon color="#ffffff" size={16} />
-                      <Text style={styles.routePrimaryBtnText}>Route planen</Text>
-                    </View>
-                    <ArrowRightSvgIcon color="#ffffff" size={18} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.routeSecondaryBtn}
-                    onPress={() => {
-                      router.dismissTo?.("/(tabs)/karte");
-                      router.replace("/(tabs)/karte");
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <MapPinSvgIcon color="#18222f" size={16} />
-                    <Text style={styles.routeSecondaryBtnText}>Zur Karte wechseln</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <Text style={styles.sectionTitle}>Lage & Routenplaner</Text>
+              <RoutePlannerCard
+                place={place}
+                firstCategory={firstCategory}
+                headerColor={headerColor}
+                onOpenOnMap={() => {
+                  router.dismissTo?.("/(tabs)/karte");
+                  router.replace("/(tabs)/karte");
+                }}
+              />
             </View>
           )}
 

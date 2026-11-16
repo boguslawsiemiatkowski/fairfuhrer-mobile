@@ -80,7 +80,7 @@ export interface OfflinePackStatus {
 type RawPackStatus = {
   name?: string;
   state?: number | string;
-  percentage?: number;
+  percentage?: number | null;
   completedResourceCount?: number;
   completedResourceSize?: number;
   completedTileCount?: number;

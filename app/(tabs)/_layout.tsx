@@ -2,12 +2,10 @@ import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Circle, Polygon } from "react-native-svg";
 
-// Expo Router: `initialRouteName` jako prop w <Tabs> bywa ignorowany
-// (deep-linki, cold-start, restore state). `unstable_settings` jest
-// autorytatywnym zrodlem dla routera i wygrywa z prop-em. Musi byc
-// zdeklarowane rownolegle z komponentem, nie w srodku.
+// Expo Router SDK 58: w `unstable_settings` używamy `anchor: "index"`,
+// a na komponencie `<Tabs>` nie podajemy już wycofanego propa `initialRouteName`.
 export const unstable_settings = {
-  initialRouteName: "index",
+  anchor: "index",
 };
 
 // Tab-Farben an einer Stelle: Icons und Labels müssen dieselben Werte nutzen,
@@ -76,10 +74,6 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   return (
     <Tabs
-      // App startuje na Liste. `unstable_settings.initialRouteName` jest
-      // autorytatywnym źródłem dla routera (deep-linki, cold-start, restore
-      // state) i musi być zgodne z tą wartością.
-      initialRouteName="index"
       screenOptions={{
         headerShown: false,
         // Renderuj wszystkie taby od razu (lazy=false) żeby Tour nie miał

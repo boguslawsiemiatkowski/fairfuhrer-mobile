@@ -56,11 +56,11 @@ const styles = StyleSheet.create({
   // skaliert, damit beide Varianten gleich groß wirken.
   logoImage: {
     flex: 1,
-    height: 68,
+    height: 76,
   },
   logo: {
     fontFamily: "Anton_400Regular",
-    fontSize: 27,
+    fontSize: 32,
     color: "#fc6c14",
     textAlign: "center",
     letterSpacing: 3,

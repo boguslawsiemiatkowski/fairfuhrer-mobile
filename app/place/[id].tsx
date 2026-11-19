@@ -9,16 +9,16 @@ import {
   Animated,
   Dimensions,
   StatusBar,
-  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Line, Path, Circle, Polyline } from "react-native-svg";
+import Svg, { Line, Path, Polyline } from "react-native-svg";
 
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { CategoryIcon, categoryColorFor } from "@/components/CategoryIcon";
 import { RoutePlannerCard } from "@/components/RoutePlannerCard";
+import { DescriptionSkeleton } from "@/components/SkeletonLoader";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
 import { getMainImageUrl, getAudioUrl, getGalleryUrls } from "@/lib/mediaUrls";
@@ -195,44 +195,7 @@ function ExternalLinkSvgIcon({ color = "#ffffff", size = 15 }: { color?: string;
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Line
-        x1="10"
-        y1="14"
-        x2="21"
-        y2="3"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}
-
-function NavigationSvgIcon({ color = "#ffffff", size = 16 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M3 11l19-9-9 19-2-8-8-2z"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-function MapPinSvgIcon({ color = "#18222f", size = 16 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Circle cx="12" cy="10" r="3" stroke={color} strokeWidth="2" />
+      <Line x1="10" y1="14" x2="21" y2="3" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </Svg>
   );
 }
@@ -263,7 +226,7 @@ interface GalleryViewerProps {
 function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
   const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(0));
 
   const goTo = useCallback(
     (nextIndex: number) => {
@@ -285,32 +248,25 @@ function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
     [currentIndex, translateX],
   );
 
-  const panRef = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -50 && currentIndex < images.length - 1) goTo(currentIndex + 1);
-        else if (g.dx > 50 && currentIndex > 0) goTo(currentIndex - 1);
-      },
-    }),
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
+        onPanResponderRelease: (_, g) => {
+          if (g.dx < -50 && currentIndex < images.length - 1) goTo(currentIndex + 1);
+          else if (g.dx > 50 && currentIndex > 0) goTo(currentIndex - 1);
+        },
+      }),
+    [currentIndex, images.length, goTo],
   );
-
-  useEffect(() => {
-    panRef.current = PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -50 && currentIndex < images.length - 1) goTo(currentIndex + 1);
-        else if (g.dx > 50 && currentIndex > 0) goTo(currentIndex - 1);
-      },
-    });
-  }, [currentIndex, images.length, goTo]);
 
   return (
     <View style={galleryStyles.overlay}>
       <StatusBar hidden />
       <Animated.View
         style={[galleryStyles.imageWrapper, { transform: [{ translateX }] }]}
-        {...panRef.current.panHandlers}
+        {...panResponder.panHandlers}
       >
         <Image
           source={{ uri: images[currentIndex].uri }}
@@ -466,27 +422,38 @@ export default function PlaceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
-  const [paywallShown, setPaywallShown] = useState(false);
+  const paywallShownRef = useRef(false);
 
   const { isPro } = useAuth();
   const placeIdNum = Number(id);
   const place = usePlacesStore((s) => s.placesById.get(placeIdNum));
   const allPlaces = usePlacesStore((s) => s.places);
   const lockedSightsIds = usePlacesStore((s) => s.lockedSightsIds);
+  const fetchPlaceDescription = usePlacesStore((s) => s.fetchPlaceDescription);
   const isLocked = !isPro && lockedSightsIds.has(placeIdNum);
 
   // Deep-link guard: if someone navigates directly to a locked place (e.g.
   // shared URL), show the paywall immediately instead of the detail screen.
   useEffect(() => {
-    if (!isLocked || paywallShown) return;
-    setPaywallShown(true);
+    if (!isLocked || paywallShownRef.current) return;
+    paywallShownRef.current = true;
     router.replace("/custom-paywall");
-  }, [isLocked, paywallShown, router]);
+  }, [isLocked, router]);
+
+  // Pobieranie opisu on-demand (jak w panelu bocznym na Webie) — gdy Vollbeschreibung
+  // nie przyszło jeszcze w głównym katalogu, dociągamy je w tle, pokazując elegancki szkielet.
+  const rawDescription = place?.Vollbeschreibung;
+  const isLoadingDescription = Boolean(place && rawDescription === undefined);
+
+  useEffect(() => {
+    if (!place || isLocked || rawDescription !== undefined) return;
+    void fetchPlaceDescription(place.id);
+  }, [place, isLocked, rawDescription, fetchPlaceDescription]);
 
   // Bloki tekstu opisu
   const descriptionBlocks = useMemo(
-    () => (place?.Vollbeschreibung ? parseDescriptionBlocks(place.Vollbeschreibung) : []),
-    [place?.Vollbeschreibung],
+    () => (rawDescription ? parseDescriptionBlocks(rawDescription) : []),
+    [rawDescription],
   );
 
   // Do 3 powiązanych / pobliskich miejsc (najpierw z tego samego miasta, potem najbliższe z okolicy)
@@ -494,10 +461,7 @@ export default function PlaceScreen() {
     if (!place?.location?.coordinates) return [];
     const coords = place.location.coordinates;
     const unlocked = allPlaces.filter(
-      (p) =>
-        p.id !== place.id &&
-        p.location?.coordinates &&
-        (isPro || !lockedSightsIds.has(p.id)),
+      (p) => p.id !== place.id && p.location?.coordinates && (isPro || !lockedSightsIds.has(p.id)),
     );
 
     const sameCity = place.Stadt
@@ -683,38 +647,44 @@ export default function PlaceScreen() {
 
         {/* 3. Treść główna na tle Studio (#f8f8ff) */}
         <View style={styles.body}>
-          {/* Sformatowany opis (akapity, nagłówki, listy punktowane) */}
-          {descriptionBlocks.length > 0 && (
+          {/* Sformatowany opis lub estetyczny szkielet ładowania tekstu (jak w panelu na Webie) */}
+          {isLoadingDescription ? (
             <View style={styles.infoSection}>
-              {descriptionBlocks.map((block, idx) => {
-                if (block.type === "heading") {
+              <DescriptionSkeleton />
+            </View>
+          ) : (
+            descriptionBlocks.length > 0 && (
+              <View style={styles.infoSection}>
+                {descriptionBlocks.map((block, idx) => {
+                  if (block.type === "heading") {
+                    return (
+                      <Text key={idx} style={styles.descHeading}>
+                        {block.text}
+                      </Text>
+                    );
+                  }
+                  if (block.type === "list-item") {
+                    return (
+                      <View key={idx} style={styles.descListRow}>
+                        <Text style={styles.descBullet}>•</Text>
+                        <Text style={styles.descListText}>{block.text}</Text>
+                      </View>
+                    );
+                  }
                   return (
-                    <Text key={idx} style={styles.descHeading}>
+                    <Text
+                      key={idx}
+                      style={[
+                        styles.descriptionParagraph,
+                        idx === descriptionBlocks.length - 1 && { marginBottom: 0 },
+                      ]}
+                    >
                       {block.text}
                     </Text>
                   );
-                }
-                if (block.type === "list-item") {
-                  return (
-                    <View key={idx} style={styles.descListRow}>
-                      <Text style={styles.descBullet}>•</Text>
-                      <Text style={styles.descListText}>{block.text}</Text>
-                    </View>
-                  );
-                }
-                return (
-                  <Text
-                    key={idx}
-                    style={[
-                      styles.descriptionParagraph,
-                      idx === descriptionBlocks.length - 1 && { marginBottom: 0 },
-                    ]}
-                  >
-                    {block.text}
-                  </Text>
-                );
-              })}
-            </View>
+                })}
+              </View>
+            )
           )}
 
           {/* Certyfikaty i odznaki zrównoważonego rozwoju */}

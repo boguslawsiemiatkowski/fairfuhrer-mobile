@@ -83,11 +83,11 @@ function PressButton({
   }));
 
   const onPressIn = useCallback(() => {
-    scale.value = withTiming(0.92, { duration: 100, easing: Easing.out(Easing.cubic) });
+    scale.set(withTiming(0.92, { duration: 100, easing: Easing.out(Easing.cubic) }));
   }, [scale]);
 
   const onPressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 12, stiffness: 220, mass: 0.5 });
+    scale.set(withSpring(1, { damping: 12, stiffness: 220, mass: 0.5 }));
   }, [scale]);
 
   return (
@@ -164,10 +164,7 @@ export function AudioPlayer({ src }: AudioPlayerProps) {
           {SPEED_OPTIONS.map((speed) => {
             const isActive = speed === 1;
             return (
-              <View
-                key={speed}
-                style={[styles.speedButton, isActive && styles.speedButtonActive]}
-              >
+              <View key={speed} style={[styles.speedButton, isActive && styles.speedButtonActive]}>
                 <Text style={[styles.speedButtonText, isActive && styles.speedButtonTextActive]}>
                   {speed}x
                 </Text>

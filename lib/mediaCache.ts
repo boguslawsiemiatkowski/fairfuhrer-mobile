@@ -92,11 +92,7 @@ function invalidateExistingCache(kind?: MediaKind): void {
  * aby telefon nie pobierał wielomegabajtowych plików oryginalnych (4000x3000px).
  */
 function optimizeRemoteImageUrl(url: string, maxWidth = 900): string {
-  if (
-    DIRECTUS_URL &&
-    url.startsWith(`${DIRECTUS_URL}/assets/`) &&
-    !url.includes("?")
-  ) {
+  if (DIRECTUS_URL && url.startsWith(`${DIRECTUS_URL}/assets/`) && !url.includes("?")) {
     return `${url}?width=${maxWidth}&quality=80&withoutEnlargement=true`;
   }
   return url;

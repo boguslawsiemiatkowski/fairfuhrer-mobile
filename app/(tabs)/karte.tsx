@@ -139,7 +139,6 @@ export default function KarteScreen() {
   const routeOrigin = useRouteStore((s) => s.origin);
   const routeDestination = useRouteStore((s) => s.destination);
   const routeResult = useRouteStore((s) => s.routeResult);
-  const routeStatus = useRouteStore((s) => s.status);
   const focusTarget = useRouteStore((s) => s.focusTarget);
   const fitBoundsTrigger = useRouteStore((s) => s.fitBoundsTrigger);
   const clearFocusTarget = useRouteStore((s) => s.clearFocusTarget);
@@ -207,12 +206,7 @@ export default function KarteScreen() {
       extend(c);
     }
 
-    cameraRef.current?.fitBounds(
-      [maxLon, maxLat],
-      [minLon, minLat],
-      [140, 48, 160, 48],
-      750,
-    );
+    cameraRef.current?.fitBounds([maxLon, maxLat], [minLon, minLat], [140, 48, 160, 48], 750);
   }, [routeResult, routeOrigin, routeDestination, fitBoundsTrigger]);
 
   // GeoJSON dla linii trasy oraz punktu startowego (START)
@@ -259,7 +253,13 @@ export default function KarteScreen() {
   }, [allPlaces, lockedIds, selectedCategoryId]);
 
   const handleSelectGeo = useCallback(
-    (item: { name: string; lat: number; lon: number; isLocalPlace: boolean; cityName?: string }) => {
+    (item: {
+      name: string;
+      lat: number;
+      lon: number;
+      isLocalPlace: boolean;
+      cityName?: string;
+    }) => {
       searchRef.current?.hideSuggestions();
       cameraRef.current?.setCamera({
         centerCoordinate: [item.lon, item.lat],

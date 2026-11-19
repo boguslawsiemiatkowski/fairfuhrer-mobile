@@ -26,12 +26,14 @@ export default function AnimatedSplash({ onFinished }: Props) {
       onFinished();
     };
 
-    opacity.value = withTiming(0, { duration: SPLASH_DURATION_MS });
-    scale.value = withTiming(1.1, { duration: SPLASH_DURATION_MS }, (finished) => {
-      if (finished) {
-        scheduleOnRN(finish);
-      }
-    });
+    opacity.set(withTiming(0, { duration: SPLASH_DURATION_MS }));
+    scale.set(
+      withTiming(1.1, { duration: SPLASH_DURATION_MS }, (finished) => {
+        if (finished) {
+          scheduleOnRN(finish);
+        }
+      }),
+    );
 
     // Safety net: gdyby worklet-callback nie odpalil (znany problem
     // Reanimated 4 + Worklets 0.7 na niektorych urzadzeniach iOS),
@@ -62,7 +64,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   logo: {
-    width: 230,
-    height: 293,
+    width: 300,
+    height: 382,
   },
 });

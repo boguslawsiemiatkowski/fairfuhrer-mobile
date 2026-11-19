@@ -83,7 +83,7 @@ export interface DirectusOrte {
   Name: string;
   Adresse: string;
   Telefon?: string;
-  Vollbeschreibung?: string;
+  Vollbeschreibung?: string | null;
   location?: GeoJSONPoint;
   Kategorie?: DirectusOrteKategorie[];
   Hauptbild?: string;

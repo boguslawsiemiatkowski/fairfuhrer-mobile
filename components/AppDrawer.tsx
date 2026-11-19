@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -162,11 +162,16 @@ function FeedbackIcon() {
 export default function AppDrawer({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const translateX = useRef(new Animated.Value(DRAWER_WIDTH)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(DRAWER_WIDTH));
+  const [opacity] = useState(() => new Animated.Value(0));
+  const [isRendered, setIsRendered] = useState(visible);
   const { fetchAll, status } = usePlacesStore();
   const { isPro, session } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+
+  if (visible && !isRendered) {
+    setIsRendered(true);
+  }
 
   const handleRefresh = async () => {
     if (refreshing || status === "loading") return;
@@ -228,12 +233,15 @@ export default function AppDrawer({ visible, onClose }: Props) {
           duration: 200,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsRendered(false);
+        }
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  }, [visible, translateX, opacity]);
 
-  if (!visible && (translateX as any)._value === DRAWER_WIDTH) return null;
+  if (!visible && !isRendered) return null;
 
   function navigate(path: string) {
     onClose();

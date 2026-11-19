@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -109,8 +109,7 @@ export default function ProfilScreen() {
   // räumt ihn am Tab nicht zuverlässig ab, er klebte dort weiter — und nach
   // dem Abmelden landete der Nutzer wieder im Registrierungsformular statt
   // im Welcome-View, das der Profil-Tab dann zeigen soll.
-  const consumedRef = useRef(false);
-  const wantsRegister = register === "1" && !consumedRef.current;
+  const wantsRegister = register === "1";
 
   useEffect(() => {
     // Erst wenn der Auth-Status steht — solange geladen wird, ist noch kein
@@ -118,14 +117,12 @@ export default function ProfilScreen() {
     if (isLoading) return;
     if (register === "1") {
       // Die Kind-Komponenten haben den Startzustand in diesem Render bereits
-      // übernommen; ab jetzt darf der Param nichts mehr auslösen. Zusätzlich
-      // überschreiben wir ihn — anders als `undefined` wird ein leerer String
-      // zuverlässig übernommen, und ein späterer Kauf kann den Wunsch dann
-      // erneut setzen.
-      consumedRef.current = true;
+      // übernommen; ab jetzt darf der Param nichts mehr auslösen. Wir
+      // überschreiben ihn mit einem leeren String — anders als `undefined`
+      // wird dieser am Tab zuverlässig übernommen, sodass der Nutzer nach dem
+      // Abmelden im Welcome-View landet und ein späterer Kauf `?register=1`
+      // erneut setzen kann.
       router.setParams({ register: "" });
-    } else {
-      consumedRef.current = false;
     }
   }, [isLoading, register, router]);
 

@@ -137,13 +137,43 @@ function buildPlacesMap(places: DirectusOrte[]): Map<number, DirectusOrte> {
 // Wspólne zapytania dla fetchAll (start aplikacji) i refreshOfflineData
 // (ręczne odświeżanie). Jedno źródło prawdy dla zestawu pól.
 
+// Klientowy cache opisów pobranych on-demand po otwarciu Audiopinu (jak na Webie)
+const descriptionCache = new Map<number, string | null>();
+const descriptionInflight = new Map<number, Promise<string | null>>();
+
 interface DirectusFetchResult {
   settings: DirectusEinstellungen;
   places: DirectusOrte[];
   categories: DirectusKategorie[];
 }
 
-async function fetchFromDirectus(): Promise<DirectusFetchResult> {
+async function fetchFromDirectus(includeDescriptions = false): Promise<DirectusFetchResult> {
+  const orteFields = [
+    "id",
+    "Name",
+    "Adresse",
+    "Stadt",
+    "Land",
+    "Telefon",
+    ...(includeDescriptions ? ["Vollbeschreibung"] : []),
+    "location",
+    "Hauptbild",
+    "Titelbild",
+    "Audio",
+    "Audio_Datei",
+    "Link_URL",
+    "Link_Text",
+    "Galerie.directus_files_id",
+    "Galerie_Bilder",
+    "Kategorie.Kategorie_id.id",
+    "Kategorie.Kategorie_id.Name",
+    "Kategorie.Kategorie_id.Farbe",
+    "Zertifizierungen.Zertifizierungen_id.id",
+    "Zertifizierungen.Zertifizierungen_id.Name",
+    "Zertifizierungen.Zertifizierungen_id.Image",
+    "Bearbeitungsstatus",
+  ];
+
   const [settings, places, categories] = await Promise.all([
     directus.request(
       readItems("Einstellungen" as never, {
@@ -152,31 +182,7 @@ async function fetchFromDirectus(): Promise<DirectusFetchResult> {
     ),
     directus.request(
       readItems("Orte" as never, {
-        fields: [
-          "id",
-          "Name",
-          "Adresse",
-          "Stadt",
-          "Land",
-          "Telefon",
-          "Vollbeschreibung",
-          "location",
-          "Hauptbild",
-          "Titelbild",
-          "Audio",
-          "Audio_Datei",
-          "Link_URL",
-          "Link_Text",
-          "Galerie.directus_files_id",
-          "Galerie_Bilder",
-          "Kategorie.Kategorie_id.id",
-          "Kategorie.Kategorie_id.Name",
-          "Kategorie.Kategorie_id.Farbe",
-          "Zertifizierungen.Zertifizierungen_id.id",
-          "Zertifizierungen.Zertifizierungen_id.Name",
-          "Zertifizierungen.Zertifizierungen_id.Image",
-          "Bearbeitungsstatus",
-        ] as never[],
+        fields: orteFields as never[],
         limit: -1,
       }),
     ),
@@ -189,9 +195,18 @@ async function fetchFromDirectus(): Promise<DirectusFetchResult> {
     ),
   ]);
 
+  const typedPlaces = places as unknown as DirectusOrte[];
+  if (includeDescriptions) {
+    for (const p of typedPlaces) {
+      if (p.Vollbeschreibung !== undefined) {
+        descriptionCache.set(p.id, p.Vollbeschreibung ?? null);
+      }
+    }
+  }
+
   return {
     settings: settings as unknown as DirectusEinstellungen,
-    places: places as unknown as DirectusOrte[],
+    places: typedPlaces,
     categories: categories as unknown as DirectusKategorie[],
   };
 }
@@ -223,6 +238,10 @@ interface PlacesState {
   // isPro decyduje, czy przy braku sieci wolno użyć cache offline —
   // offline to funkcja premium, więc dla nie-premium fallback jest pomijany.
   fetchAll: (isPro: boolean, force?: boolean) => Promise<void>;
+  // Pobiera opis pojedynczego miejsca on-demand (gdy nie przyszedł w początkowym fetchu).
+  // Dzięki temu startowy payload aplikacji jest mniejszy, a na ekranie Audiopinu
+  // w trakcie dociągania opisu wyświetlamy elegancki szkielet shimmer (jak w panelu na Webie).
+  fetchPlaceDescription: (placeId: number) => Promise<string | null>;
   // Zapisuje aktualnie załadowane dane do lokalnego cache offline.
   // Wywoływane po udanym pobraniu paczki mapy offline (funkcja premium).
   cacheCurrentPlaces: () => Promise<void>;
@@ -267,6 +286,63 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
     return get().lockedSightsIds.has(placeId);
   },
 
+  fetchPlaceDescription: async (placeId: number) => {
+    const existingPlace = get().placesById.get(placeId);
+    if (existingPlace && existingPlace.Vollbeschreibung !== undefined) {
+      return existingPlace.Vollbeschreibung ?? null;
+    }
+    if (descriptionCache.has(placeId)) {
+      const cachedDesc = descriptionCache.get(placeId) ?? null;
+      if (existingPlace) {
+        const updatedPlace: DirectusOrte = { ...existingPlace, Vollbeschreibung: cachedDesc };
+        const nextMap = new Map(get().placesById);
+        nextMap.set(placeId, updatedPlace);
+        set({
+          places: get().places.map((p) => (p.id === placeId ? updatedPlace : p)),
+          placesById: nextMap,
+        });
+      }
+      return cachedDesc;
+    }
+
+    const inflight = descriptionInflight.get(placeId);
+    if (inflight) return inflight;
+
+    const promise = (async () => {
+      try {
+        const rows = (await directus.request(
+          readItems("Orte" as never, {
+            filter: { id: { _eq: placeId } } as never,
+            fields: ["id", "Vollbeschreibung"] as never[],
+            limit: 1,
+          }),
+        )) as unknown as { id: number; Vollbeschreibung?: string | null }[];
+
+        const desc = rows?.[0]?.Vollbeschreibung ?? null;
+        descriptionCache.set(placeId, desc);
+
+        const currentPlace = get().placesById.get(placeId);
+        if (currentPlace) {
+          const updatedPlace: DirectusOrte = { ...currentPlace, Vollbeschreibung: desc };
+          const nextMap = new Map(get().placesById);
+          nextMap.set(placeId, updatedPlace);
+          set({
+            places: get().places.map((p) => (p.id === placeId ? updatedPlace : p)),
+            placesById: nextMap,
+          });
+        }
+        return desc;
+      } catch {
+        return null;
+      } finally {
+        descriptionInflight.delete(placeId);
+      }
+    })();
+
+    descriptionInflight.set(placeId, promise);
+    return promise;
+  },
+
   fetchAll: async (isPro: boolean, force = false) => {
     // Guard: nie startuj równoległych fetchów i nie przeładowuj ponownie,
     // jeśli dane są już załadowane (chyba że wywołano wymuszone odświeżenie `force = true`
@@ -278,13 +354,19 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
     set({ status: "loading", error: null });
 
     try {
-      const { settings, places, categories } = await fetchFromDirectus();
-      const { lockedSightsIds } = computeSightsGating(places, categories);
+      const { settings, places, categories } = await fetchFromDirectus(false);
+      // Jeśli mieliśmy już wcześniej pobrane opisy w pamięci, zachowujemy je przy odświeżeniu
+      const mergedPlaces = places.map((p) =>
+        p.Vollbeschreibung === undefined && descriptionCache.has(p.id)
+          ? { ...p, Vollbeschreibung: descriptionCache.get(p.id) ?? null }
+          : p,
+      );
+      const { lockedSightsIds } = computeSightsGating(mergedPlaces, categories);
 
       set({
         einstellungen: settings,
-        places,
-        placesById: buildPlacesMap(places),
+        places: mergedPlaces,
+        placesById: buildPlacesMap(mergedPlaces),
         lockedSightsIds,
         categories,
         status: "success",
@@ -296,6 +378,11 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
       // fizycznie istnieją na urządzeniu.
       const cached = isPro ? await loadPlacesCache() : null;
       if (cached) {
+        for (const p of cached.places) {
+          if (p.Vollbeschreibung !== undefined) {
+            descriptionCache.set(p.id, p.Vollbeschreibung ?? null);
+          }
+        }
         const { lockedSightsIds } = computeSightsGating(cached.places, cached.categories);
         set({
           einstellungen: cached.einstellungen,
@@ -314,15 +401,30 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
   },
 
   cacheCurrentPlaces: async () => {
-    const { places, categories, einstellungen, status } = get();
-    // Cache'ujemy tylko realnie załadowane dane online.
-    if (status !== "success" || places.length === 0) return;
-    await savePlacesCache({ places, categories, einstellungen });
+    const { status } = get();
+    if (status !== "success" || get().places.length === 0) return;
+    // Do lokalnego cache offline zapisujemy pełny zestaw danych (razem z Vollbeschreibung),
+    // aby użytkownik Fairführer+ miał w trybie offline dostęp także do wszystkich opisów.
+    try {
+      const { settings, places, categories } = await fetchFromDirectus(true);
+      const { lockedSightsIds } = computeSightsGating(places, categories);
+      set({
+        einstellungen: settings,
+        places,
+        placesById: buildPlacesMap(places),
+        lockedSightsIds,
+        categories,
+      });
+      await savePlacesCache({ places, categories, einstellungen: settings });
+    } catch {
+      const { places, categories, einstellungen } = get();
+      await savePlacesCache({ places, categories, einstellungen });
+    }
   },
 
   refreshOfflineData: async () => {
     try {
-      const { settings, places, categories } = await fetchFromDirectus();
+      const { settings, places, categories } = await fetchFromDirectus(true);
       const { lockedSightsIds } = computeSightsGating(places, categories);
       set({
         einstellungen: settings,

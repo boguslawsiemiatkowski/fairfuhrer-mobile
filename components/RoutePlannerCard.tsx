@@ -265,8 +265,6 @@ export function RoutePlannerCard({
   useEffect(() => {
     const q = originQuery.trim();
     if (!showOriginSearch || q.length < 2) {
-      setGeoSuggestions([]);
-      setIsSearchingGeo(false);
       return;
     }
 
@@ -301,13 +299,13 @@ export function RoutePlannerCard({
     return [...citySuggestions, ...filteredGeo];
   }, [citySuggestions, geoSuggestions]);
 
+  const destinationCoords = place.location?.coordinates;
   const isOriginFarForActiveMobility = useMemo(() => {
-    if (!activeOrigin || !place.location?.coordinates) return false;
+    if (!activeOrigin || !destinationCoords) return false;
     return (
-      distanceInMeters(activeOrigin.coords, place.location.coordinates) >
-      MAX_ACTIVE_MOBILITY_DISTANCE_M
+      distanceInMeters(activeOrigin.coords, destinationCoords) > MAX_ACTIVE_MOBILITY_DISTANCE_M
     );
-  }, [activeOrigin, place.location?.coordinates]);
+  }, [activeOrigin, destinationCoords]);
 
   const handleOpenPinOnMap = () => {
     void Haptics.selectionAsync().catch(() => {});
@@ -391,11 +389,7 @@ export function RoutePlannerCard({
       </View>
 
       {/* Główny przycisk: otwórz ten Pin na naszej mapie FairFührer */}
-      <TouchableOpacity
-        style={s.openOnMapBtn}
-        onPress={handleOpenPinOnMap}
-        activeOpacity={0.85}
-      >
+      <TouchableOpacity style={s.openOnMapBtn} onPress={handleOpenPinOnMap} activeOpacity={0.85}>
         <View style={s.openOnMapBtnLabel}>
           <MapPinSvg color="#ffffff" size={17} />
           <Text style={s.openOnMapBtnText}>Pin auf der FairFührer-Karte öffnen</Text>
@@ -494,9 +488,7 @@ export function RoutePlannerCard({
           >
             <SearchSvg
               color={
-                showOriginSearch ||
-                activeOrigin?.type === "pin" ||
-                activeOrigin?.type === "place"
+                showOriginSearch || activeOrigin?.type === "pin" || activeOrigin?.type === "place"
                   ? "#ffffff"
                   : "#18222f"
               }
@@ -549,7 +541,13 @@ export function RoutePlannerCard({
                 placeholder="Stadt oder Adresse eingeben…"
                 placeholderTextColor="#7a8494"
                 value={originQuery}
-                onChangeText={setOriginQuery}
+                onChangeText={(text) => {
+                  setOriginQuery(text);
+                  if (text.trim().length < 2) {
+                    setGeoSuggestions([]);
+                    setIsSearchingGeo(false);
+                  }
+                }}
                 autoCorrect={false}
               />
               {originQuery.length > 0 && (
@@ -695,12 +693,8 @@ export function RoutePlannerCard({
           <View style={s.resultBox}>
             <View style={s.resultHeaderRow}>
               <View style={s.metricsWrap}>
-                <Text style={s.durationText}>
-                  {formatDuration(activeResult.durationSeconds)}
-                </Text>
-                <Text style={s.distanceText}>
-                  {formatDistance(activeResult.distanceMeters)}
-                </Text>
+                <Text style={s.durationText}>{formatDuration(activeResult.durationSeconds)}</Text>
+                <Text style={s.distanceText}>{formatDistance(activeResult.distanceMeters)}</Text>
               </View>
 
               <TouchableOpacity
@@ -735,9 +729,7 @@ export function RoutePlannerCard({
                         </View>
                         <Text style={s.stepInstruction}>{step.instruction}</Text>
                         {step.distanceMeters > 0 && (
-                          <Text style={s.stepDist}>
-                            {formatDistance(step.distanceMeters)}
-                          </Text>
+                          <Text style={s.stepDist}>{formatDistance(step.distanceMeters)}</Text>
                         )}
                       </View>
                     ))}

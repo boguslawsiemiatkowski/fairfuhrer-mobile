@@ -19,6 +19,7 @@ import { usePlaylistStore } from "@/stores/playlistStore";
 import { getAudioUrl } from "@/lib/mediaUrls";
 import HomeHeader from "@/components/HomeHeader";
 import { PinCard } from "@/components/PinCard";
+import { PinCardSkeleton, SkeletonBlock } from "@/components/SkeletonLoader";
 import { KategorieBar } from "@/components/KategorieBar";
 import { SearchSection, type SearchSectionHandle } from "@/components/SearchSection";
 import { CityChips, placesInRegion, type Region } from "@/components/CityChips";
@@ -101,13 +102,7 @@ export default function ListeScreen() {
   );
   const isLoading = status === "loading" || status === "idle";
 
-  const {
-    orderedIds,
-    setOrderedIds,
-    orderedIdsRef: gpsOrderedIdsRef,
-    status: gpsStatus,
-    sortByLocation,
-  } = useGpsSort(status === "success");
+  const { orderedIds, status: gpsStatus, sortByLocation } = useGpsSort(status === "success");
 
   // Dauerhaft abgelehnte Berechtigung lässt sich in der App nicht mehr
   // erfragen — dann führt der Button in die Systemeinstellungen.
@@ -255,7 +250,13 @@ export default function ListeScreen() {
   }, []);
 
   const handleSelectSearchGeo = useCallback(
-    (item: { name: string; lat: number; lon: number; isLocalPlace: boolean; cityName?: string }) => {
+    (item: {
+      name: string;
+      lat: number;
+      lon: number;
+      isLocalPlace: boolean;
+      cityName?: string;
+    }) => {
       Keyboard.dismiss();
       // Resetujemy zawężenie do innego kraju, aby np. po wybraniu „Bregenz” (Austria)
       // wcześniejszy filtr „Deutschland” nie ukrył wyników.
@@ -287,8 +288,36 @@ export default function ListeScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#fc6c14" />
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <HomeHeader einstellungen={einstellungen} />
+        <View style={styles.aboveCards}>
+          <SkeletonBlock
+            style={{
+              width: 170,
+              height: 26,
+              borderRadius: 10,
+              marginLeft: LIST_HORIZONTAL_PADDING,
+            }}
+          />
+        </View>
+        <View
+          style={[styles.cardsArea, { flexDirection: "row", paddingLeft: LIST_HORIZONTAL_PADDING }]}
+        >
+          <View style={styles.cardWrapperOuter}>
+            <PinCardSkeleton width={CARD_WIDTH} height={CARD_HEIGHT} />
+          </View>
+          <View style={styles.cardWrapperOuter}>
+            <PinCardSkeleton width={CARD_WIDTH} height={CARD_HEIGHT} />
+          </View>
+        </View>
+        <View style={styles.belowCards}>
+          <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 14 }}>
+            <SkeletonBlock style={{ width: 72, height: 34, borderRadius: 17 }} />
+            <SkeletonBlock style={{ width: 112, height: 34, borderRadius: 17 }} />
+            <SkeletonBlock style={{ width: 98, height: 34, borderRadius: 17 }} />
+            <SkeletonBlock style={{ width: 88, height: 34, borderRadius: 17 }} />
+          </View>
+        </View>
       </SafeAreaView>
     );
   }

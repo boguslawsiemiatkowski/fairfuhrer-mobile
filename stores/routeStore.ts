@@ -28,12 +28,7 @@ export interface RouteResult {
 }
 
 export type RouteStatus =
-  | "idle"
-  | "picking-on-map"
-  | "locating-gps"
-  | "loading-route"
-  | "ready"
-  | "error";
+  "idle" | "picking-on-map" | "locating-gps" | "loading-route" | "ready" | "error";
 
 export const MAX_ACTIVE_MOBILITY_DISTANCE_M = 120_000;
 
@@ -110,10 +105,7 @@ interface RouteState {
     targetDest: DirectusOrte,
     requestedProfile: RouteProfile,
   ) => Promise<void>;
-  startRouteWithGps: (
-    destination: DirectusOrte,
-    initialProfile?: RouteProfile,
-  ) => Promise<void>;
+  startRouteWithGps: (destination: DirectusOrte, initialProfile?: RouteProfile) => Promise<void>;
   startRouteWithOrigin: (
     destination: DirectusOrte,
     origin: RouteOrigin,
@@ -367,10 +359,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
   changeProfile: async (nextProfile) => {
     const { origin, destination } = get();
     if (origin && destination?.location?.coordinates) {
-      const straightDist = distanceInMeters(
-        origin.coords,
-        destination.location.coordinates,
-      );
+      const straightDist = distanceInMeters(origin.coords, destination.location.coordinates);
       if (
         straightDist > MAX_ACTIVE_MOBILITY_DISTANCE_M &&
         (nextProfile === "walking" || nextProfile === "cycling")

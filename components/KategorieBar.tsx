@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -37,7 +37,7 @@ export function KategorieBar({
   isPro: boolean;
 }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(() => new Animated.Value(0));
   const insets = useSafeAreaInsets();
 
   const selectedCat = selectedId ? categories.find((c) => c.id === selectedId) : null;
@@ -148,10 +148,7 @@ export function KategorieBar({
             return (
               <TouchableOpacity
                 key={cat.id}
-                style={[
-                  styles.kategorieMenuItem,
-                  isActive && styles.kategorieMenuItemActive,
-                ]}
+                style={[styles.kategorieMenuItem, isActive && styles.kategorieMenuItemActive]}
                 onPress={() => closeMenu(cat.id)}
                 activeOpacity={0.7}
               >

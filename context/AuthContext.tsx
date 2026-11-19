@@ -147,7 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // da RevenueCat einen $RCAnonymousID vergibt und Käufe über Apple/Google
     // Store an das Gerät gebunden werden (Apple-Richtlinie 5.1.1(v): der Kauf
     // darf keine Registrierung erfordern).
-    checkPro();
+    void getCustomerInfo().then((info) => {
+      setIsPro(hasPro(info));
+    });
 
     supabase.auth
       .getSession()

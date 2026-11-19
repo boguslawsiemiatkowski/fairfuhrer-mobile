@@ -13,7 +13,7 @@ import {
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import Svg, { Polygon, Rect, Circle } from "react-native-svg";
+import Svg, { Polygon, Rect } from "react-native-svg";
 import { useAudioPlayerStatus } from "expo-audio";
 
 import {
@@ -289,7 +289,10 @@ export default function PlayerScreen() {
                         {place.Name}
                       </Text>
                       {place.Stadt && (
-                        <Text style={[s.queueCity, isCurrent && s.queueCityActive]} numberOfLines={1}>
+                        <Text
+                          style={[s.queueCity, isCurrent && s.queueCityActive]}
+                          numberOfLines={1}
+                        >
                           {place.Stadt}
                         </Text>
                       )}

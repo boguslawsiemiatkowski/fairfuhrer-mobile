@@ -145,14 +145,15 @@ export default function OfflineKartenSection({ isPro }: { isPro: boolean }) {
   // Po pobraniu paczki: zapisz aktualne konto jako właściciela danych
   // offline, zapisz piny Directusa i odśwież datę. Zdjęcia i audio pobiera
   // się osobno (OfflineMedienCard). Fire-and-forget.
+  const userId = user?.id;
   const finalizeDownload = useCallback(() => {
-    if (user?.id) void setOfflineDataOwner(user.id);
+    if (userId) void setOfflineDataOwner(userId);
     void cacheCurrentPlaces()
       .then(refreshCacheDate)
       .finally(() => {
         if (isMountedRef.current) setIsWorking(false);
       });
-  }, [cacheCurrentPlaces, refreshCacheDate, user?.id]);
+  }, [cacheCurrentPlaces, refreshCacheDate, userId]);
 
   const handleProgress = useCallback(
     (next: OfflinePackStatus) => {

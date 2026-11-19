@@ -290,33 +290,39 @@ export default function ListeScreen() {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <HomeHeader einstellungen={einstellungen} />
-        <View style={styles.aboveCards}>
-          <SkeletonBlock
-            style={{
-              width: 170,
-              height: 26,
-              borderRadius: 10,
-              marginLeft: LIST_HORIZONTAL_PADDING,
-            }}
-          />
+        <View style={styles.middleContent}>
+          <View style={styles.aboveCards}>
+            <SkeletonBlock
+              style={{
+                width: 170,
+                height: 26,
+                borderRadius: 10,
+                marginLeft: LIST_HORIZONTAL_PADDING,
+              }}
+            />
+          </View>
+          <View style={styles.cardsArea}>
+            <View style={{ flexDirection: "row", paddingLeft: LIST_HORIZONTAL_PADDING }}>
+              <View style={styles.cardWrapperOuter}>
+                <PinCardSkeleton width={CARD_WIDTH} height={CARD_HEIGHT} />
+              </View>
+              <View style={styles.cardWrapperOuter}>
+                <PinCardSkeleton width={CARD_WIDTH} height={CARD_HEIGHT} />
+              </View>
+            </View>
+          </View>
+          <View style={styles.belowCards}>
+            <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 14 }}>
+              <SkeletonBlock style={{ width: 72, height: 34, borderRadius: 17 }} />
+              <SkeletonBlock style={{ width: 112, height: 34, borderRadius: 17 }} />
+              <SkeletonBlock style={{ width: 98, height: 34, borderRadius: 17 }} />
+              <SkeletonBlock style={{ width: 88, height: 34, borderRadius: 17 }} />
+            </View>
+          </View>
         </View>
-        <View
-          style={[styles.cardsArea, { flexDirection: "row", paddingLeft: LIST_HORIZONTAL_PADDING }]}
-        >
-          <View style={styles.cardWrapperOuter}>
-            <PinCardSkeleton width={CARD_WIDTH} height={CARD_HEIGHT} />
-          </View>
-          <View style={styles.cardWrapperOuter}>
-            <PinCardSkeleton width={CARD_WIDTH} height={CARD_HEIGHT} />
-          </View>
-        </View>
-        <View style={styles.belowCards}>
-          <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 14 }}>
-            <SkeletonBlock style={{ width: 72, height: 34, borderRadius: 17 }} />
-            <SkeletonBlock style={{ width: 112, height: 34, borderRadius: 17 }} />
-            <SkeletonBlock style={{ width: 98, height: 34, borderRadius: 17 }} />
-            <SkeletonBlock style={{ width: 88, height: 34, borderRadius: 17 }} />
-          </View>
+        <View style={styles.bottomSection}>
+          <View style={styles.searchSkeletonBar} />
+          <View style={styles.kategorieSkeletonBar} />
         </View>
       </SafeAreaView>
     );
@@ -346,90 +352,95 @@ export default function ListeScreen() {
         </View>
       )}
 
-      {/* Przestrzeń nad kartą — GPS label po lewej, Alle abspielen button po prawej */}
-      <View style={styles.aboveCards}>
-        {/* Sortiert → Status-Label. Nicht sortiert → Button, der es auslöst.
-            Vorher gab es nur das Label: schlug die Ortung fehl oder wurde die
-            Berechtigung abgelehnt, hatte der Nutzer keinerlei Möglichkeit,
-            die Sortierung nachzuholen. */}
-        {orderedIds ? (
-          <View style={[styles.gpsLabel, { marginLeft: LIST_HORIZONTAL_PADDING }]}>
-            <Text style={styles.gpsLabelText}>Nach Entfernung sortiert</Text>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={[styles.gpsSortBtn, { marginLeft: LIST_HORIZONTAL_PADDING }]}
-            onPress={handleSortByLocation}
-            disabled={gpsStatus === "locating"}
-            activeOpacity={0.7}
-          >
-            {gpsStatus === "locating" ? (
-              <>
-                <ActivityIndicator size="small" color="#fc6c14" />
-                <Text style={styles.gpsSortBtnText}>Standort wird ermittelt …</Text>
-              </>
-            ) : (
-              <>
-                <Svg width={14} height={14} viewBox="0 0 24 24">
-                  <Circle cx="12" cy="12" r="9" fill="none" stroke="#fc6c14" strokeWidth={2} />
-                  <Circle cx="12" cy="12" r="3.5" fill="#fc6c14" />
-                </Svg>
-                <Text style={styles.gpsSortBtnText}>{gpsButtonLabel}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-        {showAlleAbspielenBtn && (
-          <TouchableOpacity
-            style={styles.alleAbspielenBtn}
-            onPress={handleAlleAbspielen}
-            activeOpacity={0.85}
-          >
-            <Svg width={16} height={16} viewBox="0 0 24 24">
-              <Circle cx="12" cy="12" r="12" fill="#fff" />
-              <Polygon points="10,7.5 16.5,12 10,16.5" fill="#fc6c14" />
-            </Svg>
-            <Text style={styles.alleAbspielenText}>Alle abspielen</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Środkowa część ekranu — wyśrodkowana w pionie, dzięki czemu przycisk GPS nad kartami
+          oraz chipsy krajów pod kartami są zawsze wyśrodkowane w swoich pasach przestrzeni
+          (identyczna odległość od karty i od sąsiedniej krawędzi), bez wypychania dolnego paska */}
+      <View style={styles.middleContent}>
+        {/* Przestrzeń nad kartą — GPS label po lewej, Alle abspielen button po prawej */}
+        <View style={styles.aboveCards}>
+          {/* Sortiert → Status-Label. Nicht sortiert → Button, der es auslöst.
+              Vorher gab es nur das Label: schlug die Ortung fehl oder wurde die
+              Berechtigung abgelehnt, hatte der Nutzer keinerlei Möglichkeit,
+              die Sortierung nachzuholen. */}
+          {orderedIds ? (
+            <View style={[styles.gpsLabel, { marginLeft: LIST_HORIZONTAL_PADDING }]}>
+              <Text style={styles.gpsLabelText}>Nach Entfernung sortiert</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.gpsSortBtn, { marginLeft: LIST_HORIZONTAL_PADDING }]}
+              onPress={handleSortByLocation}
+              disabled={gpsStatus === "locating"}
+              activeOpacity={0.7}
+            >
+              {gpsStatus === "locating" ? (
+                <>
+                  <ActivityIndicator size="small" color="#fc6c14" />
+                  <Text style={styles.gpsSortBtnText}>Standort wird ermittelt …</Text>
+                </>
+              ) : (
+                <>
+                  <Svg width={14} height={14} viewBox="0 0 24 24">
+                    <Circle cx="12" cy="12" r="9" fill="none" stroke="#fc6c14" strokeWidth={2} />
+                    <Circle cx="12" cy="12" r="3.5" fill="#fc6c14" />
+                  </Svg>
+                  <Text style={styles.gpsSortBtnText}>{gpsButtonLabel}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          {showAlleAbspielenBtn && (
+            <TouchableOpacity
+              style={styles.alleAbspielenBtn}
+              onPress={handleAlleAbspielen}
+              activeOpacity={0.85}
+            >
+              <Svg width={16} height={16} viewBox="0 0 24 24">
+                <Circle cx="12" cy="12" r="12" fill="#fff" />
+                <Polygon points="10,7.5 16.5,12 10,16.5" fill="#fc6c14" />
+              </Svg>
+              <Text style={styles.alleAbspielenText}>Alle abspielen</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-      {/* Karty — przewijane poziomo */}
-      <View style={styles.cardsArea}>
-        {displayedIds.length === 0 ? (
-          <View style={styles.centered}>
-            <Text style={styles.emptyText}>Keine Ergebnisse gefunden.</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={displayedIds}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={CARD_STEP}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            style={styles.flatList}
-            ListHeaderComponent={flatListHeader}
-            initialNumToRender={3}
-            maxToRenderPerBatch={2}
-            windowSize={3}
-            removeClippedSubviews
-            keyExtractor={keyExtractor}
-            getItemLayout={getItemLayout}
-            renderItem={renderCard}
+        {/* Karty — przewijane poziomo */}
+        <View style={styles.cardsArea}>
+          {displayedIds.length === 0 ? (
+            <View style={styles.centered}>
+              <Text style={styles.emptyText}>Keine Ergebnisse gefunden.</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={displayedIds}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={CARD_STEP}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              style={styles.flatList}
+              ListHeaderComponent={flatListHeader}
+              initialNumToRender={3}
+              maxToRenderPerBatch={2}
+              windowSize={3}
+              removeClippedSubviews
+              keyExtractor={keyExtractor}
+              getItemLayout={getItemLayout}
+              renderItem={renderCard}
+            />
+          )}
+        </View>
+
+        {/* Przestrzeń pod kartą — city chips wyśrodkowane pionowo, zsynchronizowane z wyszukiwarką i kategorią */}
+        <View style={styles.belowCards}>
+          <CityChips
+            activeRegionName={selectedRegion?.name ?? null}
+            allPlaces={allPlaces}
+            filteredPlaces={searchAndCategoryFilteredPlaces}
+            onSelectRegion={handleSelectRegionChip}
           />
-        )}
-      </View>
-
-      {/* Przestrzeń pod kartą — city chips wyśrodkowane pionowo, zsynchronizowane z wyszukiwarką i kategorią */}
-      <View style={styles.belowCards}>
-        <CityChips
-          activeRegionName={selectedRegion?.name ?? null}
-          allPlaces={allPlaces}
-          filteredPlaces={searchAndCategoryFilteredPlaces}
-          onSelectRegion={handleSelectRegionChip}
-        />
+        </View>
       </View>
 
       {/* Dolna sekcja — wyszukiwarka + kategorie */}
@@ -473,28 +484,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Przestrzeń nad kartami — GPS label po lewej, Alle abspielen button po prawej
+  // Środkowy kontener między HomeHeader a bottomSection — ma flex: 1 i minHeight: 0,
+  // a wewnątrz dzieli wolną przestrzeń po równo nad i pod kartami (aboveCards i belowCards).
+  middleContent: {
+    flex: 1,
+    minHeight: 0,
+  },
+  // Przestrzeń nad kartami — flex: 1, flexBasis: 0 i alignItems: "center" gwarantuje,
+  // że przycisk GPS / etykieta znajduje się dokładnie w połowie odległości między górnym nagłówkiem a kartami.
   aboveCards: {
     flex: 1,
+    flexBasis: 0,
     minHeight: 36,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingRight: 12,
   },
-  // Karty — stała wysokość, nie rozciąga się
+  // Karty — stała wysokość (CARD_HEIGHT), zawsze pomiędzy pasem górnym a dolnym
   cardsArea: {
     flexShrink: 0,
   },
-  // Przestrzeń pod kartami — chips wyśrodkowane pionowo, z gwarantowanym oddechem
+  // Przestrzeń pod kartami — flex: 1, flexBasis: 0 i justifyContent: "center" gwarantuje,
+  // że chipsy krajów znajdują się dokładnie w połowie odległości między kartami a paskiem wyszukiwarki.
   belowCards: {
     flex: 1,
-    minHeight: 64,
+    flexBasis: 0,
+    minHeight: 54,
     justifyContent: "center",
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   flatList: {
     flexGrow: 0,
+    flexShrink: 0,
+  },
+  searchSkeletonBar: {
+    height: 54,
+    backgroundColor: "#fc6c14",
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: "#000000",
+  },
+  kategorieSkeletonBar: {
+    height: 48,
+    backgroundColor: "rgba(255, 242, 232, 0.9)",
   },
   // Outer: karta + gap po prawej stronie (tworzy odstęp między kartami).
   // Wymiary (width) podawane inline — zależą od szerokości ekranu.

@@ -97,7 +97,7 @@
           "image": "./assets/splash.png",
           "resizeMode": "contain",
           "backgroundColor": "#FE6918",
-          "imageWidth": 300
+          "imageWidth": 180
         }
       ],
       [

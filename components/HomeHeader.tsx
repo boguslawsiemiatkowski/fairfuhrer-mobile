@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import MenuButton from "./MenuButton";
 import type { DirectusEinstellungen } from "@/types";
 
@@ -14,15 +15,18 @@ export default function HomeHeader({ einstellungen }: HomeHeaderProps) {
     <View style={styles.header}>
       <View style={styles.headerRow}>
         <View style={styles.headerSpacer} />
-        {einstellungen?.Logo ? (
-          <Image
-            source={{ uri: `${DIRECTUS_URL}/assets/${einstellungen.Logo}` }}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-        ) : (
-          <Text style={styles.logo}>FAIRFÜHRER</Text>
-        )}
+        <View style={styles.logoCenterWrap}>
+          {einstellungen?.Logo ? (
+            <Image
+              source={{ uri: `${DIRECTUS_URL}/assets/${einstellungen.Logo}` }}
+              style={styles.logoImage}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <Text style={styles.logo}>FAIRFÜHRER</Text>
+          )}
+        </View>
         <View style={styles.headerMenuSlot}>
           <MenuButton />
         </View>
@@ -47,20 +51,23 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 36,
   },
+  logoCenterWrap: {
+    flex: 1,
+    height: 68,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerMenuSlot: {
     width: 36,
     alignItems: "flex-end",
   },
-  // resizeMode="contain" — die Höhe steuert die Größe, die Breite folgt dem
-  // Seitenverhältnis. Der Text-Fallback darunter wird im gleichen Verhältnis
-  // skaliert, damit beide Varianten gleich groß wirken.
   logoImage: {
-    flex: 1,
-    height: 76,
+    width: "100%",
+    height: 68,
   },
   logo: {
     fontFamily: "Anton_400Regular",
-    fontSize: 32,
+    fontSize: 28,
     color: "#fc6c14",
     textAlign: "center",
     letterSpacing: 3,

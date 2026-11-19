@@ -438,7 +438,7 @@ export default function KarteScreen() {
               clusterMaxZoomLevel={14}
               onPress={handleMapPress}
             >
-              {/* Klastry — koła */}
+              {/* Klastry — koła w palecie barw marki FairFührer (#2e7d32, #fc6c14, #18222f), zsynchronizowane z Web App */}
               <CircleLayer
                 id="clusters"
                 filter={["has", "point_count"]}
@@ -446,15 +446,15 @@ export default function KarteScreen() {
                   circleColor: [
                     "step",
                     ["get", "point_count"],
-                    "#51bbd6",
+                    "#2e7d32",
                     10,
-                    "#f1f075",
+                    "#fc6c14",
                     30,
-                    "#f28cb1",
+                    "#18222f",
                   ],
-                  circleRadius: ["step", ["get", "point_count"], 20, 10, 30, 30, 40],
-                  circleStrokeWidth: 2,
-                  circleStrokeColor: "#fff",
+                  circleRadius: ["step", ["get", "point_count"], 21, 10, 26, 30, 32],
+                  circleStrokeWidth: 3,
+                  circleStrokeColor: "#ffffff",
                 }}
               />
 
@@ -464,11 +464,9 @@ export default function KarteScreen() {
                 filter={["has", "point_count"]}
                 style={{
                   textField: ["get", "point_count_abbreviated"],
-                  textSize: 20,
-                  textColor: "#fff",
-                  textFont: ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-                  textHaloColor: "#000",
-                  textHaloWidth: 0.3,
+                  textSize: 14,
+                  textColor: "#ffffff",
+                  textFont: ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
                 }}
               />
 

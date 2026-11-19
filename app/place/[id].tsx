@@ -248,6 +248,15 @@ function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
     [currentIndex, translateX],
   );
 
+  const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
+  const currentUri = images[currentIndex].uri;
+  const currentRatio = imageRatios[currentUri];
+  // Dopasowujemy wysokość kontenera zdjęcia do jego rzeczywistych proporcji (ograniczoną do 76% wysokości ekranu),
+  // aby nad i pod zdjęciem pozostawała przyciemniona przestrzeń tła, w którą kliknięcie zamyka galerię.
+  const displayedImageHeight = currentRatio
+    ? Math.min(SCREEN_HEIGHT * 0.76, SCREEN_WIDTH / currentRatio)
+    : SCREEN_HEIGHT * 0.62;
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -262,19 +271,38 @@ function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
   );
 
   return (
-    <View style={galleryStyles.overlay}>
+    <View style={galleryStyles.overlay} {...panResponder.panHandlers}>
       <StatusBar hidden />
+      {/* Tapnięcie w przyciemnioną przestrzeń wokół zdjęcia zamyka galerię */}
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        activeOpacity={1}
+        onPress={onClose}
+        accessibilityLabel="Galerie schließen"
+      />
       <Animated.View
+        pointerEvents="box-none"
         style={[galleryStyles.imageWrapper, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
       >
-        <Image
-          source={{ uri: images[currentIndex].uri }}
-          style={galleryStyles.fullImage}
-          contentFit="contain"
-          transition={120}
-          cachePolicy="memory-disk"
-        />
+        <View style={{ width: SCREEN_WIDTH, height: displayedImageHeight }}>
+          <Image
+            source={{ uri: currentUri }}
+            style={galleryStyles.fullImage}
+            contentFit="contain"
+            transition={120}
+            cachePolicy="memory-disk"
+            onLoad={(e) => {
+              const w = e.source?.width;
+              const h = e.source?.height;
+              if (w && h && h > 0) {
+                const ratio = w / h;
+                setImageRatios((prev) =>
+                  prev[currentUri] === ratio ? prev : { ...prev, [currentUri]: ratio },
+                );
+              }
+            }}
+          />
+        </View>
       </Animated.View>
       <TouchableOpacity
         style={[galleryStyles.closeBtn, { top: insets.top + 12 }]}
@@ -368,8 +396,8 @@ const galleryStyles = StyleSheet.create({
     alignItems: "center",
   },
   fullImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: "100%",
+    height: "100%",
   },
   closeBtn: {
     position: "absolute",
@@ -995,6 +1023,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 26,
     color: "#18222f",
+    textAlign: "justify",
     marginBottom: 8,
   },
   descListRow: {

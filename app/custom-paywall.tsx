@@ -102,6 +102,14 @@ export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const { session, refreshPro } = useAuth();
 
+  const handleClose = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  };
+
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [selected, setSelected] = useState<PurchasesPackage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -160,7 +168,7 @@ export default function PaywallScreen() {
     if (!session) {
       router.replace("/purchase-success");
     } else {
-      router.back();
+      handleClose();
     }
   };
 
@@ -212,7 +220,7 @@ export default function PaywallScreen() {
       const info = await Purchases.restorePurchases();
       if (info.entitlements.active[ENTITLEMENT_ID]) {
         await refreshPro();
-        router.back();
+        handleClose();
       } else {
         Alert.alert("Keine Käufe gefunden", "Es wurden keine früheren Käufe gefunden.");
       }
@@ -248,7 +256,7 @@ export default function PaywallScreen() {
 
           <TouchableOpacity
             style={[s.closeBtn, { top: Math.max(insets.top, 12) + 8 }]}
-            onPress={() => router.back()}
+            onPress={handleClose}
             hitSlop={12}
           >
             <Text style={s.closeBtnText}>✕</Text>

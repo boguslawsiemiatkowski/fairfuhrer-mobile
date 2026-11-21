@@ -6,6 +6,6 @@ module.exports = defineConfig([
   expoConfig,
   eslintPluginPrettierRecommended,
   {
-    ignores: ["dist/*", ".expo/*", "node_modules/*"],
+    ignores: ["dist/*", ".expo/*", "expo-env.d.ts", "node_modules/*"],
   },
 ]);

@@ -22,7 +22,7 @@ import Animated, {
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
@@ -292,9 +292,9 @@ export default function AppDrawer({ visible, onClose }: Props) {
 
   if (!visible && !isRendered) return null;
 
-  function navigate(path: string) {
+  function navigate(path: Href) {
     onClose();
-    setTimeout(() => router.navigate(path as any), 250);
+    setTimeout(() => router.navigate(path), 250);
   }
 
   return (
@@ -391,7 +391,7 @@ export default function AppDrawer({ visible, onClose }: Props) {
           </View>
 
           <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
-            <Text style={s.footerText}>© 2025 Seenergien GmbH</Text>
+            <Text style={s.footerText}>© {new Date().getFullYear()} Seenergien GmbH</Text>
             <Text style={s.footerText}>fairfuehrer.guide</Text>
           </View>
         </Animated.View>

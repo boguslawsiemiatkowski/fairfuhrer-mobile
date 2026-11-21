@@ -75,6 +75,14 @@ export default function LegalScreen({ title, collection, mode = "singleton" }: P
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  };
+
   useEffect(() => {
     async function load() {
       try {
@@ -114,7 +122,7 @@ export default function LegalScreen({ title, collection, mode = "singleton" }: P
     >
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity style={s.backBtn} onPress={handleBack} hitSlop={8}>
           <BackIcon />
         </TouchableOpacity>
         <Text style={s.headerTitle}>{title}</Text>

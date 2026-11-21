@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useScrollToTop } from "expo-router";
 import Svg, { Polygon, Circle } from "react-native-svg";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
@@ -132,6 +132,8 @@ export default function ListeScreen() {
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList<number>>(null);
+  // Tapnięcie w aktywną zakładkę Liste na dolnym pasku przewija poziomą karuzelę kart do początku
+  useScrollToTop(flatListRef);
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
 
   // Fetch danych przy pierwszym montowaniu.

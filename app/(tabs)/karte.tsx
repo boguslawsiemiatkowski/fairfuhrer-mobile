@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   BackHandler,
+  Alert,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Mapbox, {
@@ -21,8 +23,9 @@ import Mapbox, {
   Image as MapImage,
 } from "@rnmapbox/maps";
 import type { ComponentRef } from "react";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useIsFocused } from "expo-router";
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import * as Sentry from "@sentry/react-native";
 import { useTabGpsCenter } from "@/hooks/useTabGpsCenter";
 import { withPositionTimeout } from "@/lib/location";
@@ -126,7 +129,7 @@ const MapPinImages = React.memo(function MapPinImages() {
 
 export default function KarteScreen() {
   const router = useRouter();
-  const [isFocused, setIsFocused] = useState(true);
+  const isFocused = useIsFocused();
   const searchRef = useRef<SearchSectionHandle>(null);
 
   const allCategories = usePlacesStore((s) => s.categories);
@@ -154,14 +157,20 @@ export default function KarteScreen() {
   const pickOriginOnMap = useRouteStore((s) => s.pickOriginOnMap);
   const cancelPickingOnMap = useRouteStore((s) => s.cancelPickingOnMap);
 
-  // 1) Śledzenie fokusu zakładki Karte (oszczędzanie GPS/kompasu gdy zakładka jest w tle).
-  // 2) Sprzętowy przycisk „Wstecz” na Androidzie anuluje tryb wyboru punktu na mapie
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
+  const [isLocatingUser, setIsLocatingUser] = useState(false);
+  const { center: cameraCenter, zoom: cameraZoom } = useTabGpsCenter(status === "success");
+  const userLocationRef = useRef<[number, number] | null>(null);
+  const puckSeenRef = useRef(false);
+  const shapeSourceRef = useRef<ComponentRef<typeof ShapeSource>>(null);
+  const cameraRef = useRef<Camera>(null);
+
+  // 1) Sprzętowy przycisk „Wstecz” na Androidzie anuluje tryb wyboru punktu na mapie
   //    (zamiast opuszczać ekran mapy).
-  // 3) Przy opuszczeniu zakładki Karte automatycznie zamykamy otwartą listę podpowiedzi wyszukiwarki.
+  // 2) Przy opuszczeniu zakładki Karte automatycznie zamykamy otwartą listę podpowiedzi wyszukiwarki.
   useFocusEffect(
     useCallback(() => {
-      setIsFocused(true);
-
       const onBackPress = () => {
         if (routeStatus === "picking-on-map") {
           cancelPickingOnMap();
@@ -173,26 +182,41 @@ export default function KarteScreen() {
       const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
 
       return () => {
-        setIsFocused(false);
         subscription.remove();
         searchRef.current?.hideSuggestions();
       };
     }, [routeStatus, cancelPickingOnMap]),
   );
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
-  const { center: cameraCenter, zoom: cameraZoom } = useTabGpsCenter(status === "success");
-  const userLocationRef = useRef<[number, number] | null>(null);
-  const puckSeenRef = useRef(false);
-  const shapeSourceRef = useRef<ComponentRef<typeof ShapeSource>>(null);
-  const cameraRef = useRef<Camera>(null);
-
   // GPS-Position kommt asynchron.
   const gpsAppliedRef = useRef(false);
+  // Chroni przed sytuacją, w której użytkownik przeszedł z ekranu audiopinu
+  // („Pin auf der FairFührer-Karte öffnen”), efekt `focusTarget` zdążył już wywołać
+  // `setCamera` i `clearFocusTarget()`, a ułamek sekundy później asynchroniczny
+  // `useTabGpsCenter` zwraca pozycję GPS i nadpisuje kamerę lokalizacją użytkownika.
+  const hasExplicitCameraTargetRef = useRef(false);
+
+  // Obsługa wycentrowania kamery na wybranym pinie („Pin auf der FairFührer-Karte öffnen”)
   useEffect(() => {
-    if (gpsAppliedRef.current) return;
+    if (!focusTarget) return;
+    hasExplicitCameraTargetRef.current = true;
+    gpsAppliedRef.current = true;
+    cameraRef.current?.setCamera({
+      centerCoordinate: focusTarget.coords,
+      zoomLevel: focusTarget.zoomLevel,
+      animationMode: "flyTo",
+      animationDuration: 650,
+    });
+    clearFocusTarget();
+  }, [focusTarget, clearFocusTarget]);
+
+  useEffect(() => {
     if (cameraCenter[0] === 10.0 && cameraCenter[1] === 51.0) return; // Default
+    // Zawsze zapisujemy współrzędne GPS użytkownika w userLocationRef, aby przycisk
+    // celownika (⊕) miał je od razu pod ręką.
+    userLocationRef.current = cameraCenter;
+
+    if (gpsAppliedRef.current || hasExplicitCameraTargetRef.current) return;
     gpsAppliedRef.current = true;
     // Nie nadpisuj widoku, jeśli użytkownik właśnie przeszedł z karty pinu
     // („Pin auf der Karte öffnen” lub aktywna trasa)
@@ -207,21 +231,11 @@ export default function KarteScreen() {
     });
   }, [cameraCenter, cameraZoom]);
 
-  // Obsługa wycentrowania kamery na wybranym pinie („Pin auf der FairFührer-Karte öffnen”)
-  useEffect(() => {
-    if (!focusTarget) return;
-    cameraRef.current?.setCamera({
-      centerCoordinate: focusTarget.coords,
-      zoomLevel: focusTarget.zoomLevel,
-      animationMode: "flyTo",
-      animationDuration: 650,
-    });
-    clearFocusTarget();
-  }, [focusTarget, clearFocusTarget]);
-
   // Dopasowanie kamery (fitBounds) do wyznaczonej trasy Mapbox
   useEffect(() => {
     if (!routeResult || !routeOrigin || !routeDestination?.location?.coordinates) return;
+    hasExplicitCameraTargetRef.current = true;
+    gpsAppliedRef.current = true;
     const coords = routeResult.geometry.coordinates as [number, number][];
     if (coords.length === 0) return;
 
@@ -560,13 +574,16 @@ export default function KarteScreen() {
         )}
       </View>
 
-      {/* Przycisk powrotu do lokalizacji. Priorytet:
-          1. userLocationRef (aktualizowany przez UserLocation.onUpdate)
-          2. Fallback: getCurrentPositionAsync (gdy Mapbox jeszcze nie
-             odpalił onUpdate — np. tuz po otwarciu Karte) */}
+      {/* Przycisk powrotu do lokalizacji użytkownika (⊕). Priorytet:
+          1. userLocationRef (aktualizowany przez UserLocation.onUpdate oraz useTabGpsCenter)
+          2. getLastKnownPositionAsync (błyskawiczny odczyt z cache systemowego Android/iOS)
+          3. Fallback: getCurrentPositionAsync z wizualnym spinnerem i obsługą błędów/uprawnień */}
       <TouchableOpacity
         style={styles.gpsBtn}
+        disabled={isLocatingUser}
         onPress={async () => {
+          void Haptics.selectionAsync().catch(() => {});
+
           if (userLocationRef.current) {
             cameraRef.current?.setCamera({
               centerCoordinate: userLocationRef.current,
@@ -576,28 +593,63 @@ export default function KarteScreen() {
             });
             return;
           }
-          // Fallback: puck jeszcze nie dostarczył fixa (onUpdate nie odpalił).
-          // Diagnostyka wysyła do Sentry realną przyczynę zamiast po cichu nic
-          // nie robić.
+
+          setIsLocatingUser(true);
           Sentry.addBreadcrumb({
             category: "gps",
             level: "info",
             message: "gps-button fallback (puck ref empty)",
           });
+
           try {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== "granted") {
+            const { status: permStatus, canAskAgain } =
+              await Location.requestForegroundPermissionsAsync();
+            if (permStatus !== "granted") {
               Sentry.captureMessage("gps-button: permission not granted", {
                 level: "warning",
                 tags: { feature: "gps-button" },
-                extra: { status },
+                extra: { status: permStatus },
+              });
+              Alert.alert(
+                "Standort benötigt",
+                "Um deinen Standort auf der Karte anzuzeigen, aktiviere bitte den Standortzugriff für Fairführer.",
+                canAskAgain
+                  ? [{ text: "OK" }]
+                  : [
+                      { text: "Abbrechen", style: "cancel" },
+                      {
+                        text: "Einstellungen",
+                        onPress: () => {
+                          void Linking.openSettings().catch(() => {});
+                        },
+                      },
+                    ],
+              );
+              return;
+            }
+
+            // 1) Najpierw spróbuj ostatniej znanej pozycji z systemu (0 ms czekania).
+            //    Jeśli jest świeża, od razu przesuwamy kamerę, nie blokując użytkownika.
+            const lastPos = await Location.getLastKnownPositionAsync({
+              maxAge: 300_000,
+            }).catch(() => null);
+
+            if (lastPos) {
+              const lastCoords: [number, number] = [
+                lastPos.coords.longitude,
+                lastPos.coords.latitude,
+              ];
+              userLocationRef.current = lastCoords;
+              cameraRef.current?.setCamera({
+                centerCoordinate: lastCoords,
+                zoomLevel: 13,
+                animationMode: "flyTo",
+                animationDuration: 600,
               });
               return;
             }
-            // getCurrentPositionAsync nie ma wbudowanego timeoutu i potrafi
-            // wisieć w nieskonczonosc bez fixa GPS. Wspolny helper zamiast
-            // lokalnego Promise.race — ten zostawial wiszacy setTimeout takze
-            // wtedy, gdy pozycja przyszla na czas.
+
+            // 2) Jeśli brak pozycji w cache — pobierz świeży fix GPS z timeoutem
             const pos = await withPositionTimeout(
               Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
             );
@@ -611,11 +663,21 @@ export default function KarteScreen() {
             });
           } catch (e) {
             Sentry.captureException(e, { tags: { feature: "gps-button" } });
+            Alert.alert(
+              "Standort nicht verfügbar",
+              "Dein aktueller GPS-Standort konnte nicht ermittelt werden. Bitte prüfe, ob die Ortungsdienste aktiviert sind.",
+            );
+          } finally {
+            setIsLocatingUser(false);
           }
         }}
         activeOpacity={0.8}
       >
-        <Text style={styles.gpsBtnText}>⊕</Text>
+        {isLocatingUser ? (
+          <ActivityIndicator size="small" color="#fc6c14" />
+        ) : (
+          <Text style={styles.gpsBtnText}>⊕</Text>
+        )}
       </TouchableOpacity>
 
       {/* Dolna sekcja — tylko wyszukiwarka */}

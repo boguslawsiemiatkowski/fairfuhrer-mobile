@@ -68,7 +68,8 @@
       "favicon": "./assets/app-icon.png"
     },
     "experiments": {
-      "reactCompiler": true
+      "reactCompiler": true,
+      "typedRoutes": true
     },
     "extra": {
       "eas": {

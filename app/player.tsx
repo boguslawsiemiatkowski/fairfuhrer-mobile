@@ -133,12 +133,20 @@ export default function PlayerScreen() {
   }, [context]);
 
   const handleClose = useCallback(() => {
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
   }, [router]);
 
   const handleStop = useCallback(() => {
     stop();
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
   }, [stop, router]);
 
   if (!isActive || !currentPlace) {

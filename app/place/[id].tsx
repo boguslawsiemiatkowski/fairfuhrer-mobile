@@ -497,8 +497,21 @@ export default function PlaceScreen() {
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const paywallShownRef = useRef(false);
 
+  const handleClose = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  }, [router]);
+
   const { isPro } = useAuth();
   const placeIdNum = Number(id);
+  const [prevPlaceId, setPrevPlaceId] = useState(placeIdNum);
+  if (prevPlaceId !== placeIdNum) {
+    setPrevPlaceId(placeIdNum);
+    setGalleryIndex(null);
+  }
   const place = usePlacesStore((s) => s.placesById.get(placeIdNum));
   const allPlaces = usePlacesStore((s) => s.places);
   const storeStatus = usePlacesStore((s) => s.status);
@@ -593,7 +606,7 @@ export default function PlaceScreen() {
     return (
       <View style={styles.notFound}>
         <Text style={styles.notFoundText}>Ort nicht gefunden.</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={handleClose} style={styles.backBtn}>
           <Text style={styles.backBtnText}>Zurück</Text>
         </TouchableOpacity>
       </View>
@@ -626,15 +639,16 @@ export default function PlaceScreen() {
       {/* ── Przycisk zamknięcia w stylu Studio (prawy górny róg) ── */}
       <TouchableOpacity
         style={[styles.closeButton, { top: Math.max(insets.top, 12) + 8 }]}
-        onPress={() => router.back()}
+        onPress={handleClose}
         activeOpacity={0.85}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <CloseIcon color="#18222f" size={18} />
       </TouchableOpacity>
 
-      {/* ── ScrollView (cała strona przewija się spójnie jak na Webie) ── */}
+      {/* ── ScrollView (cała strona przewija się spójnie jak na Webie; key={place.id} resetuje scroll przy przejściu do innego pinu) ── */}
       <ScrollView
+        key={place.id}
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + 36 }}
         showsVerticalScrollIndicator={false}

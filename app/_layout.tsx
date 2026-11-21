@@ -48,6 +48,15 @@ Sentry.init({
 SplashScreen.preventAutoHideAsync();
 initializePurchases();
 
+// Wspólne opcje dla ekranów modalnych (iOS sheet + swipe-down to dismiss).
+const MODAL_SCREEN_OPTIONS = {
+  presentation: "modal" as const,
+  animation: "slide_from_bottom" as const,
+  gestureEnabled: true,
+  gestureDirection: "vertical" as const,
+  sheetGrabberVisible: true,
+};
+
 function RootLayoutNav() {
   const { isLoading, isPro } = useAuth();
   const { isOpen, closeDrawer } = useDrawer();
@@ -106,44 +115,6 @@ function RootLayoutNav() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
-          name="place/[id]"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-            gestureEnabled: true,
-            gestureDirection: "vertical",
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="custom-paywall"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-            gestureEnabled: true,
-            gestureDirection: "vertical",
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="purchase-success"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="auth-modal"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-            gestureEnabled: true,
-            gestureDirection: "vertical",
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
           name="(drawer)"
           options={{
             presentation: "card",
@@ -151,16 +122,27 @@ function RootLayoutNav() {
             fullScreenGestureEnabled: true,
           }}
         />
+        <Stack.Screen name="place/[id]" options={MODAL_SCREEN_OPTIONS} />
+        <Stack.Screen name="custom-paywall" options={MODAL_SCREEN_OPTIONS} />
+        <Stack.Screen name="auth-modal" options={MODAL_SCREEN_OPTIONS} />
+        <Stack.Screen
+          name="purchase-success"
+          options={{
+            ...MODAL_SCREEN_OPTIONS,
+            gestureEnabled: false,
+            sheetGrabberVisible: false,
+          }}
+        />
         <Stack.Screen
           name="player"
           options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
+            ...MODAL_SCREEN_OPTIONS,
             contentStyle: { backgroundColor: "#18222F" },
             // Wyłączamy natywne zamykanie modala gestem pionowym na całym ekranie,
             // aby użytkownik mógł swobodnie przewijać zawartość odtwarzacza i playlistę
             // w górę i w dół. Do minimalizowania i zamykania służą duże przyciski w nagłówku.
             gestureEnabled: false,
+            sheetGrabberVisible: false,
           }}
         />
       </Stack>

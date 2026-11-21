@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
-import { useIsFocused } from "expo-router/react-navigation";
+import { useIsFocused } from "expo-router";
 import { withPositionTimeout } from "@/lib/location";
 
 const DEFAULT_CENTER: [number, number] = [10.0, 51.0];

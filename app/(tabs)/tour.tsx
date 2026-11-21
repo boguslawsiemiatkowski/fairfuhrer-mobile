@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef, type ComponentRef } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useScrollToTop } from "expo-router";
 import * as Location from "expo-location";
 import Svg, { Polygon, Circle } from "react-native-svg";
 
@@ -46,6 +46,8 @@ function withAudioOnly(places: DirectusOrte[]): DirectusOrte[] {
 
 export default function TourScreen() {
   const router = useRouter();
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  useScrollToTop(scrollRef);
   const { isPro } = useAuth();
   // BUG-FIX (2026-07-02, v1.1.1): wcześniej robiłem
   //   const { getVisiblePlaces } = usePlacesStore()
@@ -200,7 +202,7 @@ export default function TourScreen() {
           damit die Kopfzeile beim Scrollen stehen bleibt und das Menü auf
           allen Tabs an derselben Stelle sitzt. */}
       <HomeHeader einstellungen={einstellungen} />
-      <ScrollView contentContainerStyle={s.scroll}>
+      <ScrollView ref={scrollRef} contentContainerStyle={s.scroll}>
         <View style={s.header}>
           <Text style={s.headerTitle}>Tour</Text>
           <Text style={s.headerSubtitle}>Alle Audios in einer Playlist abspielen</Text>

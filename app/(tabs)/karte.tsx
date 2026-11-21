@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  BackHandler,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Mapbox, {
   Camera,
@@ -14,7 +21,7 @@ import Mapbox, {
   Image as MapImage,
 } from "@rnmapbox/maps";
 import type { ComponentRef } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
 import { useTabGpsCenter } from "@/hooks/useTabGpsCenter";
@@ -119,6 +126,7 @@ const MapPinImages = React.memo(function MapPinImages() {
 
 export default function KarteScreen() {
   const router = useRouter();
+  const [isFocused, setIsFocused] = useState(true);
   const searchRef = useRef<SearchSectionHandle>(null);
 
   const allCategories = usePlacesStore((s) => s.categories);
@@ -139,10 +147,38 @@ export default function KarteScreen() {
   const routeOrigin = useRouteStore((s) => s.origin);
   const routeDestination = useRouteStore((s) => s.destination);
   const routeResult = useRouteStore((s) => s.routeResult);
+  const routeStatus = useRouteStore((s) => s.status);
   const focusTarget = useRouteStore((s) => s.focusTarget);
   const fitBoundsTrigger = useRouteStore((s) => s.fitBoundsTrigger);
   const clearFocusTarget = useRouteStore((s) => s.clearFocusTarget);
   const pickOriginOnMap = useRouteStore((s) => s.pickOriginOnMap);
+  const cancelPickingOnMap = useRouteStore((s) => s.cancelPickingOnMap);
+
+  // 1) Śledzenie fokusu zakładki Karte (oszczędzanie GPS/kompasu gdy zakładka jest w tle).
+  // 2) Sprzętowy przycisk „Wstecz” na Androidzie anuluje tryb wyboru punktu na mapie
+  //    (zamiast opuszczać ekran mapy).
+  // 3) Przy opuszczeniu zakładki Karte automatycznie zamykamy otwartą listę podpowiedzi wyszukiwarki.
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+
+      const onBackPress = () => {
+        if (routeStatus === "picking-on-map") {
+          cancelPickingOnMap();
+          return true;
+        }
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => {
+        setIsFocused(false);
+        subscription.remove();
+        searchRef.current?.hideSuggestions();
+      };
+    }, [routeStatus, cancelPickingOnMap]),
+  );
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
@@ -497,27 +533,29 @@ export default function KarteScreen() {
             {/* Puck (natywny GPU renderer) MUSI byc ostatnim dzieckiem MapView,
                 zeby byl rysowany NA WIERZCHU pinow. W Mapbox React Native
                 kolejnosc JSX = kolejnosc warstw.
-                W 10.3.x <UserLocation> jest deprecated i w praktyce w 10.3.2
-                przestal renderowac puck na Androidzie. LocationPuck to nastepca
-                (natywny), a osobny <UserLocation visible={false} onUpdate>
-                zostaje tylko po to, zeby dostac coords do userLocationRef
-                (uzywane przez globus) — puck sie nie duplikuje, bo visible=false. */}
-            <LocationPuck puckBearingEnabled puckBearing="heading" visible />
-            <UserLocation
-              visible={false}
-              onUpdate={(loc) => {
-                userLocationRef.current = [loc.coords.longitude, loc.coords.latitude];
-                if (!puckSeenRef.current) {
-                  puckSeenRef.current = true;
-                  Sentry.addBreadcrumb({
-                    category: "gps",
-                    level: "info",
-                    message: "UserLocation puck first fix",
-                    data: { lon: loc.coords.longitude, lat: loc.coords.latitude },
-                  });
-                }
-              }}
-            />
+                Renderujemy LocationPuck i UserLocation wyłącznie wtedy, gdy ekran
+                Karte ma fokus (isFocused) — oszczędza to baterię, GPS i kompas,
+                gdy użytkownik przegląda Liste, Tour, Profil lub szczegóły audiopinu. */}
+            {isFocused && (
+              <>
+                <LocationPuck puckBearingEnabled puckBearing="heading" visible />
+                <UserLocation
+                  visible={false}
+                  onUpdate={(loc) => {
+                    userLocationRef.current = [loc.coords.longitude, loc.coords.latitude];
+                    if (!puckSeenRef.current) {
+                      puckSeenRef.current = true;
+                      Sentry.addBreadcrumb({
+                        category: "gps",
+                        level: "info",
+                        message: "UserLocation puck first fix",
+                        data: { lon: loc.coords.longitude, lat: loc.coords.latitude },
+                      });
+                    }
+                  }}
+                />
+              </>
+            )}
           </MapView>
         )}
       </View>

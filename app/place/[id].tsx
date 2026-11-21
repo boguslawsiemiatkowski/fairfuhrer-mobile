@@ -5,11 +5,19 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  PanResponder,
-  Animated,
   Dimensions,
+  useWindowDimensions,
   StatusBar,
+  BackHandler,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+} from "react-native-reanimated";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { scheduleOnRN } from "react-native-worklets";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +36,6 @@ import { openExternalUrl } from "@/lib/openExternalUrl";
 import type { DirectusKategorie, DirectusOrte } from "@/types";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const SCREEN_HEIGHT = Dimensions.get("window").height;
 const GALLERY_IMAGE_SIZE = Math.floor((SCREEN_WIDTH - 40 - 10) / 2);
 const IMAGE_HEIGHT = 250;
 
@@ -225,27 +232,41 @@ interface GalleryViewerProps {
 
 function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [translateX] = useState(() => new Animated.Value(0));
+  const translateX = useSharedValue(0);
+
+  // Obsługa sprzętowego przycisku/gestu „Wstecz” na Androidzie:
+  // zamiast zamykać cały ekran audiopinu (place/[id]), zamyka wyłącznie pełnoekranową galerię.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onClose]);
+
+  const finishTransition = useCallback(
+    (nextIndex: number, incomingOffset: number) => {
+      translateX.set(incomingOffset);
+      setCurrentIndex(nextIndex);
+      translateX.set(withTiming(0, { duration: 180 }));
+    },
+    [translateX],
+  );
 
   const goTo = useCallback(
     (nextIndex: number) => {
       const direction = nextIndex > currentIndex ? -1 : 1;
-      Animated.timing(translateX, {
-        toValue: direction * SCREEN_WIDTH,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        translateX.setValue(-direction * SCREEN_WIDTH);
-        setCurrentIndex(nextIndex);
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }).start();
-      });
+      translateX.set(
+        withTiming(direction * screenWidth, { duration: 180 }, (finished) => {
+          if (finished) {
+            scheduleOnRN(finishTransition, nextIndex, -direction * screenWidth);
+          }
+        }),
+      );
     },
-    [currentIndex, translateX],
+    [currentIndex, screenWidth, translateX, finishTransition],
   );
 
   const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
@@ -254,126 +275,151 @@ function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
   // Dopasowujemy wysokość kontenera zdjęcia do jego rzeczywistych proporcji (ograniczoną do 76% wysokości ekranu),
   // aby nad i pod zdjęciem pozostawała przyciemniona przestrzeń tła, w którą kliknięcie zamyka galerię.
   const displayedImageHeight = currentRatio
-    ? Math.min(SCREEN_HEIGHT * 0.76, SCREEN_WIDTH / currentRatio)
-    : SCREEN_HEIGHT * 0.62;
+    ? Math.min(screenHeight * 0.76, screenWidth / currentRatio)
+    : screenHeight * 0.62;
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) =>
-          Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
-        onPanResponderRelease: (_, g) => {
-          if (g.dx < -50 && currentIndex < images.length - 1) goTo(currentIndex + 1);
-          else if (g.dx > 50 && currentIndex > 0) goTo(currentIndex - 1);
-        },
-      }),
-    [currentIndex, images.length, goTo],
-  );
+  const panGesture = usePanGesture({
+    activeOffsetX: [-12, 12],
+    failOffsetY: [-25, 25],
+    onUpdate: (e) => {
+      "worklet";
+      // Lekki opór na pierwszym i ostatnim zdjęciu (rubber-band effect)
+      const isAtFirst = currentIndex === 0 && e.translationX > 0;
+      const isAtLast = currentIndex === images.length - 1 && e.translationX < 0;
+      translateX.set(isAtFirst || isAtLast ? e.translationX * 0.28 : e.translationX);
+    },
+    onDeactivate: (e) => {
+      "worklet";
+      if ((e.translationX < -50 || e.velocityX < -500) && currentIndex < images.length - 1) {
+        scheduleOnRN(goTo, currentIndex + 1);
+      } else if ((e.translationX > 50 || e.velocityX > 500) && currentIndex > 0) {
+        scheduleOnRN(goTo, currentIndex - 1);
+      } else {
+        translateX.set(
+          withSpring(0, {
+            damping: 22,
+            stiffness: 240,
+            mass: 0.8,
+          }),
+        );
+      }
+    },
+  });
+
+  const imageAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   return (
-    <View style={galleryStyles.overlay} {...panResponder.panHandlers}>
-      <StatusBar hidden />
-      {/* Tapnięcie w przyciemnioną przestrzeń wokół zdjęcia zamyka galerię */}
-      <TouchableOpacity
-        style={StyleSheet.absoluteFill}
-        activeOpacity={1}
-        onPress={onClose}
-        accessibilityLabel="Galerie schließen"
-      />
-      <Animated.View
-        pointerEvents="box-none"
-        style={[galleryStyles.imageWrapper, { transform: [{ translateX }] }]}
-      >
-        <View style={{ width: SCREEN_WIDTH, height: displayedImageHeight }}>
-          <Image
-            source={{ uri: currentUri }}
-            style={galleryStyles.fullImage}
-            contentFit="contain"
-            transition={120}
-            cachePolicy="memory-disk"
-            onLoad={(e) => {
-              const w = e.source?.width;
-              const h = e.source?.height;
-              if (w && h && h > 0) {
-                const ratio = w / h;
-                setImageRatios((prev) =>
-                  prev[currentUri] === ratio ? prev : { ...prev, [currentUri]: ratio },
-                );
-              }
-            }}
-          />
+    <GestureDetector gesture={panGesture}>
+      <View style={galleryStyles.overlay}>
+        <StatusBar hidden />
+        {/* Tapnięcie w przyciemnioną przestrzeń wokół zdjęcia zamyka galerię */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
+          accessibilityLabel="Galerie schließen"
+        />
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            galleryStyles.imageWrapper,
+            { width: screenWidth, height: screenHeight },
+            imageAnimatedStyle,
+          ]}
+        >
+          <View style={{ width: screenWidth, height: displayedImageHeight }}>
+            <Image
+              source={{ uri: currentUri }}
+              style={galleryStyles.fullImage}
+              contentFit="contain"
+              transition={120}
+              cachePolicy="memory-disk"
+              onLoad={(e) => {
+                const w = e.source?.width;
+                const h = e.source?.height;
+                if (w && h && h > 0) {
+                  const ratio = w / h;
+                  setImageRatios((prev) =>
+                    prev[currentUri] === ratio ? prev : { ...prev, [currentUri]: ratio },
+                  );
+                }
+              }}
+            />
+          </View>
+        </Animated.View>
+        <TouchableOpacity
+          style={[galleryStyles.closeBtn, { top: insets.top + 12 }]}
+          onPress={onClose}
+          activeOpacity={0.85}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <CloseIcon color="#18222f" size={18} />
+        </TouchableOpacity>
+        {currentIndex > 0 && (
+          <TouchableOpacity
+            style={[galleryStyles.arrowBtn, galleryStyles.arrowLeft]}
+            onPress={() => goTo(currentIndex - 1)}
+            activeOpacity={0.7}
+          >
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+              <Line
+                x1="15"
+                y1="6"
+                x2="9"
+                y2="12"
+                stroke="#18222f"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <Line
+                x1="9"
+                y1="12"
+                x2="15"
+                y2="18"
+                stroke="#18222f"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </Svg>
+          </TouchableOpacity>
+        )}
+        {currentIndex < images.length - 1 && (
+          <TouchableOpacity
+            style={[galleryStyles.arrowBtn, galleryStyles.arrowRight]}
+            onPress={() => goTo(currentIndex + 1)}
+            activeOpacity={0.7}
+          >
+            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+              <Line
+                x1="9"
+                y1="6"
+                x2="15"
+                y2="12"
+                stroke="#18222f"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <Line
+                x1="15"
+                y1="12"
+                x2="9"
+                y2="18"
+                stroke="#18222f"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </Svg>
+          </TouchableOpacity>
+        )}
+        <View style={[galleryStyles.counter, { bottom: insets.bottom + 20 }]}>
+          <Text style={galleryStyles.counterText}>
+            {currentIndex + 1} / {images.length}
+          </Text>
         </View>
-      </Animated.View>
-      <TouchableOpacity
-        style={[galleryStyles.closeBtn, { top: insets.top + 12 }]}
-        onPress={onClose}
-        activeOpacity={0.85}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <CloseIcon color="#18222f" size={18} />
-      </TouchableOpacity>
-      {currentIndex > 0 && (
-        <TouchableOpacity
-          style={[galleryStyles.arrowBtn, galleryStyles.arrowLeft]}
-          onPress={() => goTo(currentIndex - 1)}
-          activeOpacity={0.7}
-        >
-          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-            <Line
-              x1="15"
-              y1="6"
-              x2="9"
-              y2="12"
-              stroke="#18222f"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            <Line
-              x1="9"
-              y1="12"
-              x2="15"
-              y2="18"
-              stroke="#18222f"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-          </Svg>
-        </TouchableOpacity>
-      )}
-      {currentIndex < images.length - 1 && (
-        <TouchableOpacity
-          style={[galleryStyles.arrowBtn, galleryStyles.arrowRight]}
-          onPress={() => goTo(currentIndex + 1)}
-          activeOpacity={0.7}
-        >
-          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-            <Line
-              x1="9"
-              y1="6"
-              x2="15"
-              y2="12"
-              stroke="#18222f"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            <Line
-              x1="15"
-              y1="12"
-              x2="9"
-              y2="18"
-              stroke="#18222f"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-          </Svg>
-        </TouchableOpacity>
-      )}
-      <View style={[galleryStyles.counter, { bottom: insets.bottom + 20 }]}>
-        <Text style={galleryStyles.counterText}>
-          {currentIndex + 1} / {images.length}
-        </Text>
       </View>
-    </View>
+    </GestureDetector>
   );
 }
 
@@ -390,8 +436,6 @@ const galleryStyles = StyleSheet.create({
     zIndex: 100,
   },
   imageWrapper: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     justifyContent: "center",
     alignItems: "center",
   },

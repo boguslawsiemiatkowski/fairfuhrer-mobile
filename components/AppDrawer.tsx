@@ -4,12 +4,23 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
   Pressable,
-  Dimensions,
+  useWindowDimensions,
+  Keyboard,
   Alert,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, { Path, Circle } from "react-native-svg";
@@ -20,7 +31,6 @@ import { openExternalUrl } from "@/lib/openExternalUrl";
 
 const FF_ORANGE = "#fc6c14";
 const FF_BLACK = "#181716";
-const DRAWER_WIDTH = Dimensions.get("window").width * 0.78;
 
 interface Props {
   visible: boolean;
@@ -162,8 +172,11 @@ function FeedbackIcon() {
 export default function AppDrawer({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [translateX] = useState(() => new Animated.Value(DRAWER_WIDTH));
-  const [opacity] = useState(() => new Animated.Value(0));
+  const { width: windowWidth } = useWindowDimensions();
+  const drawerWidth = Math.min(Math.round(windowWidth * 0.78), 360);
+
+  const translateX = useSharedValue(drawerWidth);
+  const opacity = useSharedValue(0);
   const [isRendered, setIsRendered] = useState(visible);
   const { fetchAll, status } = usePlacesStore();
   const { isPro, session } = useAuth();
@@ -208,38 +221,72 @@ export default function AppDrawer({ visible, onClose }: Props) {
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 65,
-          friction: 11,
+      Keyboard.dismiss();
+      translateX.set(
+        withSpring(0, {
+          damping: 22,
+          stiffness: 220,
+          mass: 0.9,
         }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      );
+      opacity.set(withTiming(1, { duration: 200 }));
     } else {
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: DRAWER_WIDTH,
-          duration: 220,
-          useNativeDriver: true,
+      translateX.set(
+        withTiming(drawerWidth, { duration: 220 }, (finished) => {
+          if (finished) {
+            scheduleOnRN(setIsRendered, false);
+          }
         }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) {
-          setIsRendered(false);
-        }
-      });
+      );
+      opacity.set(withTiming(0, { duration: 200 }));
     }
-  }, [visible, translateX, opacity]);
+  }, [visible, drawerWidth, translateX, opacity]);
+
+  // Obsługa sprzętowego przycisku/gestu „Wstecz” na Androidzie przy otwartej szufladzie
+  useEffect(() => {
+    if (!visible) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [visible, onClose]);
+
+  // Natywny gest przesunięcia palcem w prawo (swipe-to-close) na wątku UI
+  const panGesture = usePanGesture({
+    enabled: visible,
+    activeOffsetX: [10, 9999],
+    failOffsetY: [-20, 20],
+    onUpdate: (e) => {
+      "worklet";
+      const dragX = Math.max(0, e.translationX);
+      translateX.set(dragX);
+      opacity.set(interpolate(dragX, [0, drawerWidth], [1, 0], Extrapolation.CLAMP));
+    },
+    onDeactivate: (e) => {
+      "worklet";
+      if (e.translationX > drawerWidth * 0.28 || e.velocityX > 500) {
+        scheduleOnRN(onClose);
+      } else {
+        translateX.set(
+          withSpring(0, {
+            damping: 22,
+            stiffness: 220,
+            mass: 0.9,
+          }),
+        );
+        opacity.set(withTiming(1, { duration: 150 }));
+      }
+    },
+  });
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const panelAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   if (!visible && !isRendered) return null;
 
@@ -251,92 +298,102 @@ export default function AppDrawer({ visible, onClose }: Props) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={visible ? "auto" : "none"}>
       {/* Backdrop */}
-      <Animated.View style={[s.backdrop, { opacity }]}>
+      <Animated.View style={[s.backdrop, backdropAnimatedStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Panel — slides in from right */}
-      <Animated.View
-        style={[
-          s.panel,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 },
-          { transform: [{ translateX }] },
-        ]}
-      >
-        {/* Header */}
-        <View style={s.panelHeader}>
-          <Text style={s.panelTitle}>FAIRFÜHRER</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={8}>
-            <CloseIcon />
-          </TouchableOpacity>
-        </View>
+      {/* Panel — slides in from right + supports native swipe-to-close */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            s.panel,
+            {
+              width: drawerWidth,
+              paddingTop: insets.top + 8,
+              paddingBottom: insets.bottom + 16,
+            },
+            panelAnimatedStyle,
+          ]}
+        >
+          {/* Header */}
+          <View style={s.panelHeader}>
+            <Text style={s.panelTitle}>FAIRFÜHRER</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={8}>
+              <CloseIcon />
+            </TouchableOpacity>
+          </View>
 
-        {/* Main items */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>DATEN</Text>
-          <TouchableOpacity
-            style={s.item}
-            onPress={handleRefresh}
-            activeOpacity={0.7}
-            disabled={refreshing || status === "loading"}
-          >
-            <View style={s.itemIcon}>
-              {refreshing ? <ActivityIndicator size="small" color={FF_ORANGE} /> : <RefreshIcon />}
-            </View>
-            <Text style={s.itemLabel}>
-              {refreshing ? "Wird aktualisiert…" : "Daten aktualisieren"}
-            </Text>
-            {!refreshing && <ChevronIcon />}
-          </TouchableOpacity>
-        </View>
+          {/* Main items */}
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>DATEN</Text>
+            <TouchableOpacity
+              style={s.item}
+              onPress={handleRefresh}
+              activeOpacity={0.7}
+              disabled={refreshing || status === "loading"}
+            >
+              <View style={s.itemIcon}>
+                {refreshing ? (
+                  <ActivityIndicator size="small" color={FF_ORANGE} />
+                ) : (
+                  <RefreshIcon />
+                )}
+              </View>
+              <Text style={s.itemLabel}>
+                {refreshing ? "Wird aktualisiert…" : "Daten aktualisieren"}
+              </Text>
+              {!refreshing && <ChevronIcon />}
+            </TouchableOpacity>
+          </View>
 
-        <View style={s.divider} />
+          <View style={s.divider} />
 
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>SUPPORT</Text>
-          <DrawerItem
-            label="Hilfe & FAQ"
-            icon={<HilfeIcon />}
-            onPress={() => navigate("/(drawer)/hilfe")}
-          />
-          <DrawerItem
-            label="Feedback senden"
-            icon={<FeedbackIcon />}
-            onPress={() =>
-              openExternalUrl(
-                "mailto:info@fairfuehrer.guide?subject=App-Feedback",
-                "Auf diesem Gerät ist keine E-Mail-App eingerichtet. Sie erreichen uns unter info@fairfuehrer.guide.",
-              )
-            }
-          />
-        </View>
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>SUPPORT</Text>
+            <DrawerItem
+              label="Hilfe & FAQ"
+              icon={<HilfeIcon />}
+              onPress={() => navigate("/(drawer)/hilfe")}
+            />
+            <DrawerItem
+              label="Feedback senden"
+              icon={<FeedbackIcon />}
+              onPress={() =>
+                openExternalUrl(
+                  "mailto:info@fairfuehrer.guide?subject=App-Feedback",
+                  "Auf diesem Gerät ist keine E-Mail-App eingerichtet. Sie erreichen uns unter info@fairfuehrer.guide.",
+                )
+              }
+            />
+          </View>
 
-        <View style={s.divider} />
+          <View style={s.divider} />
 
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>RECHTLICHES</Text>
-          <DrawerItem
-            label="Datenschutz"
-            icon={<DatenschutzIcon />}
-            onPress={() => navigate("/(drawer)/datenschutz")}
-          />
-          <DrawerItem
-            label="Nutzungsbedingungen"
-            icon={<AgbIcon />}
-            onPress={() => navigate("/(drawer)/agb")}
-          />
-          <DrawerItem
-            label="Impressum"
-            icon={<ImpressumIcon />}
-            onPress={() => navigate("/(drawer)/impressum")}
-          />
-        </View>
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>RECHTLICHES</Text>
+            <DrawerItem
+              label="Datenschutz"
+              icon={<DatenschutzIcon />}
+              onPress={() => navigate("/(drawer)/datenschutz")}
+            />
+            <DrawerItem
+              label="Nutzungsbedingungen"
+              icon={<AgbIcon />}
+              onPress={() => navigate("/(drawer)/agb")}
+            />
+            <DrawerItem
+              label="Impressum"
+              icon={<ImpressumIcon />}
+              onPress={() => navigate("/(drawer)/impressum")}
+            />
+          </View>
 
-        <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <Text style={s.footerText}>© 2025 Seenergien GmbH</Text>
-          <Text style={s.footerText}>fairfuehrer.guide</Text>
-        </View>
-      </Animated.View>
+          <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+            <Text style={s.footerText}>© 2025 Seenergien GmbH</Text>
+            <Text style={s.footerText}>fairfuehrer.guide</Text>
+          </View>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
@@ -355,7 +412,6 @@ const s = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: DRAWER_WIDTH,
     backgroundColor: "#f8f8ff",
     borderLeftWidth: 2,
     borderLeftColor: "#18222f",

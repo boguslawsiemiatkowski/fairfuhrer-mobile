@@ -1,14 +1,13 @@
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  Animated,
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
   Easing,
-  StyleSheet,
-  Platform,
-} from "react-native";
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { CategoryIcon, categoryColorFor } from "./CategoryIcon";
@@ -37,7 +36,7 @@ export function KategorieBar({
   isPro: boolean;
 }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [slideAnim] = useState(() => new Animated.Value(0));
+  const slideAnim = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
   const selectedCat = selectedId ? categories.find((c) => c.id === selectedId) : null;
@@ -48,45 +47,58 @@ export function KategorieBar({
 
   const openMenu = useCallback(() => {
     void Haptics.selectionAsync().catch(() => {});
-    slideAnim.setValue(0);
+    slideAnim.set(0);
     setModalVisible(true);
   }, [slideAnim]);
 
   const handleModalShow = useCallback(() => {
-    Animated.timing(slideAnim, {
-      toValue: 1,
-      duration: 250,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+    slideAnim.set(
+      withTiming(1, {
+        duration: 240,
+        easing: Easing.out(Easing.quad),
+      }),
+    );
   }, [slideAnim]);
+
+  const finishClose = useCallback(
+    (id: number | null) => {
+      setModalVisible(false);
+      onSelect(id);
+    },
+    [onSelect],
+  );
 
   const closeMenu = useCallback(
     (id: number | null) => {
       if (id !== selectedId) {
         void Haptics.selectionAsync().catch(() => {});
       }
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }).start(() => {
-        setModalVisible(false);
-        onSelect(id);
-      });
+      slideAnim.set(
+        withTiming(
+          0,
+          {
+            duration: 190,
+            easing: Easing.in(Easing.quad),
+          },
+          (finished) => {
+            if (finished) {
+              scheduleOnRN(finishClose, id);
+            }
+          },
+        ),
+      );
     },
-    [slideAnim, onSelect, selectedId],
+    [slideAnim, finishClose, selectedId],
   );
 
-  const menuTranslateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [20, 0],
-  });
-  const backdropOpacity = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.4],
-  });
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(slideAnim.value, [0, 1], [0, 0.4]),
+  }));
+
+  const menuAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: slideAnim.value,
+    transform: [{ translateY: interpolate(slideAnim.value, [0, 1], [24, 0]) }],
+  }));
 
   return (
     <View>
@@ -99,7 +111,7 @@ export function KategorieBar({
         statusBarTranslucent
       >
         <Animated.View
-          style={[styles.kategorieBackdrop, { opacity: backdropOpacity }]}
+          style={[styles.kategorieBackdrop, backdropAnimatedStyle]}
           pointerEvents="box-none"
         >
           <TouchableOpacity
@@ -110,14 +122,7 @@ export function KategorieBar({
         </Animated.View>
 
         <Animated.View
-          style={[
-            styles.kategorieMenu,
-            {
-              opacity: slideAnim,
-              transform: [{ translateY: menuTranslateY }],
-              paddingBottom: insets.bottom,
-            },
-          ]}
+          style={[styles.kategorieMenu, { paddingBottom: insets.bottom }, menuAnimatedStyle]}
         >
           <TouchableOpacity
             style={[

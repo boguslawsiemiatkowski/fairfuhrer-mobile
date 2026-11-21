@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import Svg, { Polygon, Circle } from "react-native-svg";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useAuth } from "@/context/AuthContext";
@@ -138,6 +138,15 @@ export default function ListeScreen() {
   useEffect(() => {
     fetchAll(isPro);
   }, [fetchAll, isPro]);
+
+  // Automatyczne chowanie otwartej listy sugestii wyszukiwarki przy opuszczeniu zakładki Liste
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        searchRef.current?.hideSuggestions();
+      };
+    }, []),
+  );
 
   // 1. Filtrowanie po wybranym miejscu geograficznym z wyszukiwarki (np. Lindau, Bregenz):
   //    - Jeśli nazwa pasuje do miasta (Stadt) w naszym katalogu, filtrujemy dokładnie do tego miasta

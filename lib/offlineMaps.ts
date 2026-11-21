@@ -164,12 +164,33 @@ export async function getOfflinePackStatus(): Promise<OfflinePackStatus | null> 
 }
 
 /**
- * Rozpoczyna pobieranie paczki offline. Jeśli paczka już istnieje, zwraca jej
- * aktualny status bez ponownego tworzenia.
+ * Podpina listenery postępu i błędów do aktualnie trwającego pobierania paczki
+ * (np. po powrocie użytkownika na zakładkę Profil, gdy pobieranie trwa w tle).
+ */
+export async function subscribeOfflinePack(
+  onProgress: (status: OfflinePackStatus) => void,
+  onError: (error: { message: string }) => void,
+): Promise<void> {
+  const progressListener = (_pack: unknown, status: RawPackStatus) => {
+    onProgress(normalizeStatus(status, OFFLINE_PACK_VERSION));
+  };
+  const errorListener = (_pack: unknown, err: unknown) => {
+    const message =
+      typeof err === "object" && err !== null && "message" in err
+        ? String((err as { message: unknown }).message)
+        : "Unbekannter Fehler beim Herunterladen der Offline-Karte.";
+    onError({ message });
+  };
+
+  await Mapbox.offlineManager.subscribe(OFFLINE_PACK_NAME, progressListener, errorListener);
+}
+
+/**
+ * Rozpoczyna pobieranie paczki offline. Jeśli kompletna i aktualna paczka już
+ * istnieje, zwraca jej status bez ponownego tworzenia.
  *
  * Callbacki `onProgress` i `onError` są wywoływane przez natywny moduł RNMapbox
- * w trakcie pobierania. Wartość zwracana to status z momentu zakończenia
- * wywołania `createPack` (zwykle stan początkowy, 0 %).
+ * w trakcie pobierania.
  *
  * UWAGA: `createPack` rejestruje przekazane listenery w singletonie
  * `offlineManager`. Po zakończeniu pobierania (lub przy odmontowaniu ekranu)
@@ -188,10 +209,20 @@ export async function startOfflinePackDownload(
   }
 
   const existing = await getOfflinePackStatus();
-  if (existing && !existing.isOutdated) return existing;
-  // Nieaktualna paczka (zmienione bounds/zoom/styl) — usuń ją, by createPack
-  // mógł pobrać świeżą wersję pod tą samą nazwą.
-  if (existing && existing.isOutdated) {
+  if (existing && existing.state === "complete" && !existing.isOutdated) {
+    return existing;
+  }
+
+  // Jeśli pobieranie już trwa w tle w bieżącej sesji, podepnij ponownie listenery.
+  if (existing && existing.state === "active" && !existing.isOutdated) {
+    await subscribeOfflinePack(onProgress, onError);
+    return existing;
+  }
+
+  // Niekompletna (przerwana: "inactive" / "unknown") lub nieaktualna paczka —
+  // usuń definicję regionu przed wywołaniem createPack, aby uniknąć błędu
+  // "Offline pack with name bodensee-allgaeu already exists".
+  if (existing) {
     await deleteOfflinePack();
   }
 
@@ -222,20 +253,21 @@ export async function startOfflinePackDownload(
     errorListener,
   );
 
-  const status = await getOfflinePackStatus();
-  return (
-    status ?? {
-      name: OFFLINE_PACK_NAME,
-      state: "active",
-      percentage: 0,
-      completedResourceCount: 0,
-      completedResourceSize: 0,
-      completedTileCount: 0,
-      completedTileSize: 0,
-      requiredResourceCount: 0,
-      isOutdated: false,
-    }
-  );
+  // Nie wywołujemy tu getOfflinePackStatus() bezpośrednio po createPack,
+  // ponieważ w RNMBXOfflineModule.kt (Mapbox v11) getPackStatus nadpisuje
+  // obiekt TileRegionPack w pamięci nowym obiektem ze stanem UNKNOWN i bez
+  // referencji `cancelable`. Aktualny postęp przychodzi przez progressListener.
+  return {
+    name: OFFLINE_PACK_NAME,
+    state: "active",
+    percentage: 0,
+    completedResourceCount: 0,
+    completedResourceSize: 0,
+    completedTileCount: 0,
+    completedTileSize: 0,
+    requiredResourceCount: 0,
+    isOutdated: false,
+  };
 }
 
 /**

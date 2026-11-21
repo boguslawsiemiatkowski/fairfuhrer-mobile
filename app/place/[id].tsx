@@ -30,6 +30,7 @@ import { CategoryIcon, categoryColorFor } from "@/components/CategoryIcon";
 import { RoutePlannerCard } from "@/components/RoutePlannerCard";
 import { DescriptionSkeleton } from "@/components/SkeletonLoader";
 import { usePlacesStore } from "@/stores/placesStore";
+import { useRouteStore } from "@/stores/routeStore";
 import { useAuth } from "@/context/AuthContext";
 import { getMainImageUrl, getAudioUrl, getGalleryUrls } from "@/lib/mediaUrls";
 import { resolveMediaUri } from "@/lib/mediaCache";
@@ -885,7 +886,16 @@ export default function PlaceScreen() {
                     <TouchableOpacity
                       key={other.id}
                       style={styles.relatedCard}
-                      onPress={() => router.replace(`/place/${other.id}`)}
+                      onPress={() => {
+                        if (other.location?.coordinates) {
+                          useRouteStore
+                            .getState()
+                            .focusMapOnCoords(other.location.coordinates, 16, other.id);
+                        } else {
+                          useRouteStore.getState().setSelectedPlaceId(other.id);
+                        }
+                        router.replace(`/place/${other.id}`);
+                      }}
                       activeOpacity={0.85}
                     >
                       <CategoryIcon

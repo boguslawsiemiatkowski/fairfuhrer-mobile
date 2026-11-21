@@ -82,6 +82,7 @@ export function formatDuration(seconds: number): string {
 interface FocusTarget {
   coords: [number, number];
   zoomLevel: number;
+  placeId?: number | null;
   timestamp: number;
 }
 
@@ -94,9 +95,11 @@ interface RouteState {
   infoNotice: string | null;
   routeResult: RouteResult | null;
   focusTarget: FocusTarget | null;
+  selectedPlaceId: number | null;
   fitBoundsTrigger: number;
 
-  focusMapOnCoords: (coords: [number, number], zoomLevel?: number) => void;
+  setSelectedPlaceId: (placeId: number | null) => void;
+  focusMapOnCoords: (coords: [number, number], zoomLevel?: number, placeId?: number | null) => void;
   clearFocusTarget: () => void;
   triggerFitBounds: () => void;
 
@@ -129,16 +132,23 @@ export const useRouteStore = create<RouteState>((set, get) => ({
   infoNotice: null,
   routeResult: null,
   focusTarget: null,
+  selectedPlaceId: null,
   fitBoundsTrigger: 0,
 
-  focusMapOnCoords: (coords, zoomLevel = 16) => {
-    set({
+  setSelectedPlaceId: (placeId) => {
+    set({ selectedPlaceId: placeId });
+  },
+
+  focusMapOnCoords: (coords, zoomLevel = 16, placeId) => {
+    set((s) => ({
       focusTarget: {
         coords,
         zoomLevel,
+        placeId: placeId ?? null,
         timestamp: Date.now(),
       },
-    });
+      selectedPlaceId: placeId !== undefined ? placeId : s.selectedPlaceId,
+    }));
   },
 
   clearFocusTarget: () => {
@@ -208,6 +218,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
         status: "ready",
         errorMessage: null,
         infoNotice: notice,
+        selectedPlaceId: targetDest.id,
         fitBoundsTrigger: s.fitBoundsTrigger + 1,
       }));
       return;
@@ -224,6 +235,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
       status: "loading-route",
       errorMessage: null,
       infoNotice: notice,
+      selectedPlaceId: targetDest.id,
     });
 
     const coordsParam = `${targetOrigin.coords[0]},${targetOrigin.coords[1]};${destCoords[0]},${destCoords[1]}`;

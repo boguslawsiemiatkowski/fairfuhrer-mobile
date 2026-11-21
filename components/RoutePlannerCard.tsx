@@ -200,6 +200,7 @@ export function RoutePlannerCard({
   const routeResult = useRouteStore((s) => s.routeResult);
 
   const focusMapOnCoords = useRouteStore((s) => s.focusMapOnCoords);
+  const setSelectedPlaceId = useRouteStore((s) => s.setSelectedPlaceId);
   const triggerFitBounds = useRouteStore((s) => s.triggerFitBounds);
   const startRouteWithGps = useRouteStore((s) => s.startRouteWithGps);
   const startRouteWithOrigin = useRouteStore((s) => s.startRouteWithOrigin);
@@ -310,7 +311,9 @@ export function RoutePlannerCard({
   const handleOpenPinOnMap = () => {
     void Haptics.selectionAsync().catch(() => {});
     if (place.location?.coordinates) {
-      focusMapOnCoords(place.location.coordinates, 16);
+      focusMapOnCoords(place.location.coordinates, 16, place.id);
+    } else {
+      setSelectedPlaceId(place.id);
     }
     onOpenOnMap();
   };
@@ -344,7 +347,9 @@ export function RoutePlannerCard({
     setShowOriginSearch(false);
     startPickingOnMap(place, profile);
     if (place.location?.coordinates) {
-      focusMapOnCoords(place.location.coordinates, 13);
+      focusMapOnCoords(place.location.coordinates, 13, place.id);
+    } else {
+      setSelectedPlaceId(place.id);
     }
     onOpenOnMap();
   };
@@ -362,6 +367,7 @@ export function RoutePlannerCard({
 
   const handleShowRouteOnMap = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setSelectedPlaceId(place.id);
     triggerFitBounds();
     onOpenOnMap();
   };

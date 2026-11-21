@@ -7,6 +7,7 @@ import {
   formatPackSize,
   getOfflinePackStatus,
   startOfflinePackDownload,
+  subscribeOfflinePack,
   unsubscribeOfflinePack,
   type OfflinePackStatus,
 } from "@/lib/offlineMaps";
@@ -121,27 +122,6 @@ export default function OfflineKartenSection({ isPro }: { isPro: boolean }) {
     if (isMountedRef.current) setIsRefreshing(false);
   }, [isRefreshing, refreshOfflineData, refreshCacheDate]);
 
-  // Sprawdź aktualny status paczki przy wejściu na ekran i wyrejestruj
-  // listenery RNMapbox przy odmontowaniu.
-  useEffect(() => {
-    isMountedRef.current = true;
-    (async () => {
-      try {
-        const current = await getOfflinePackStatus();
-        if (isMountedRef.current) setStatus(current);
-      } catch {
-        if (isMountedRef.current) setStatus(null);
-      } finally {
-        if (isMountedRef.current) setIsInitializing(false);
-      }
-      await refreshCacheDate();
-    })();
-    return () => {
-      isMountedRef.current = false;
-      unsubscribeOfflinePack();
-    };
-  }, [refreshCacheDate]);
-
   // Po pobraniu paczki: zapisz aktualne konto jako właściciela danych
   // offline, zapisz piny Directusa i odśwież datę. Zdjęcia i audio pobiera
   // się osobno (OfflineMedienCard). Fire-and-forget.
@@ -173,6 +153,32 @@ export default function OfflineKartenSection({ isPro }: { isPro: boolean }) {
     setIsWorking(false);
     unsubscribeOfflinePack();
   }, []);
+
+  // Sprawdź aktualny status paczki przy wejściu na ekran (oraz podepnij listenery,
+  // jeśli pobieranie już trwa w tle) i wyrejestruj listenery przy odmontowaniu.
+  useEffect(() => {
+    isMountedRef.current = true;
+    (async () => {
+      try {
+        const current = await getOfflinePackStatus();
+        if (isMountedRef.current) {
+          setStatus(current);
+          if (current?.state === "active") {
+            await subscribeOfflinePack(handleProgress, handleError);
+          }
+        }
+      } catch {
+        if (isMountedRef.current) setStatus(null);
+      } finally {
+        if (isMountedRef.current) setIsInitializing(false);
+      }
+      await refreshCacheDate();
+    })();
+    return () => {
+      isMountedRef.current = false;
+      unsubscribeOfflinePack();
+    };
+  }, [refreshCacheDate, handleProgress, handleError]);
 
   const handleDownload = useCallback(async () => {
     if (!isPro || isWorking) return;

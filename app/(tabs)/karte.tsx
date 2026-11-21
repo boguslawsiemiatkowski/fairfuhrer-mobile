@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Mapbox, {
   Camera,
   MapView,
-  UserLocation,
   LocationPuck,
   ShapeSource,
   CircleLayer,
@@ -152,6 +151,8 @@ export default function KarteScreen() {
   const routeResult = useRouteStore((s) => s.routeResult);
   const routeStatus = useRouteStore((s) => s.status);
   const focusTarget = useRouteStore((s) => s.focusTarget);
+  const selectedPlaceId = useRouteStore((s) => s.selectedPlaceId);
+  const setSelectedPlaceId = useRouteStore((s) => s.setSelectedPlaceId);
   const fitBoundsTrigger = useRouteStore((s) => s.fitBoundsTrigger);
   const clearFocusTarget = useRouteStore((s) => s.clearFocusTarget);
   const pickOriginOnMap = useRouteStore((s) => s.pickOriginOnMap);
@@ -160,9 +161,14 @@ export default function KarteScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
   const [isLocatingUser, setIsLocatingUser] = useState(false);
-  const { center: cameraCenter, zoom: cameraZoom } = useTabGpsCenter(status === "success");
+  const [isMapReady, setIsMapReady] = useState(false);
+  const {
+    center: cameraCenter,
+    zoom: cameraZoom,
+    hasPermission: hasLocationPermission,
+    markPermissionGranted,
+  } = useTabGpsCenter(status === "success");
   const userLocationRef = useRef<[number, number] | null>(null);
-  const puckSeenRef = useRef(false);
   const shapeSourceRef = useRef<ComponentRef<typeof ShapeSource>>(null);
   const cameraRef = useRef<Camera>(null);
 
@@ -196,19 +202,52 @@ export default function KarteScreen() {
   // `useTabGpsCenter` zwraca pozycję GPS i nadpisuje kamerę lokalizacją użytkownika.
   const hasExplicitCameraTargetRef = useRef(false);
 
-  // Obsługa wycentrowania kamery na wybranym pinie („Pin auf der FairFührer-Karte öffnen”)
+  // Początkowe ustawienia kamery przy pierwszym montowaniu MapView — jeśli użytkownik
+  // wszedł na zakładkę Karte po raz pierwszy poprzez „Pin auf der FairFührer-Karte öffnen”,
+  // od razu startujemy w punkcie docelowym zamiast w domyślnym środku Niemiec.
+  const initialCameraSettings = useMemo(() => {
+    const initialFocus = useRouteStore.getState().focusTarget;
+    return {
+      centerCoordinate: initialFocus ? initialFocus.coords : cameraCenter,
+      zoomLevel: initialFocus ? initialFocus.zoomLevel : cameraZoom,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Obsługa wycentrowania kamery na wybranym pinie („Pin auf der FairFührer-Karte öffnen”).
+  // Czekamy, aż zakładka Karte będzie aktywna (isFocused) i styl Mapboxa gotowy (isMapReady),
+  // aby wywołanie setCamera nie zostało odrzucone, gdy użytkownik kliknął przycisk
+  // będąc jeszcze w modalu audiopinu otwartym z zakładki Liste (gdy zakładka Karte
+  // była odłączona od okna Androida przez react-native-screens).
   useEffect(() => {
-    if (!focusTarget) return;
+    if (!focusTarget || !isFocused || !isMapReady) return;
     hasExplicitCameraTargetRef.current = true;
     gpsAppliedRef.current = true;
+
+    const targetCoords = focusTarget.coords;
+    const targetZoom = focusTarget.zoomLevel;
+
     cameraRef.current?.setCamera({
-      centerCoordinate: focusTarget.coords,
-      zoomLevel: focusTarget.zoomLevel,
+      centerCoordinate: targetCoords,
+      zoomLevel: targetZoom,
       animationMode: "flyTo",
       animationDuration: 650,
     });
-    clearFocusTarget();
-  }, [focusTarget, clearFocusTarget]);
+
+    // Powtórz po krótkiej klatce (90 ms), gdy RNMBXMapView zakończy afterAttachFromLooper
+    // po ponownym podłączeniu zakładki Karte do okna natywnego.
+    const timer = setTimeout(() => {
+      cameraRef.current?.setCamera({
+        centerCoordinate: targetCoords,
+        zoomLevel: targetZoom,
+        animationMode: "flyTo",
+        animationDuration: 650,
+      });
+      clearFocusTarget();
+    }, 90);
+
+    return () => clearTimeout(timer);
+  }, [focusTarget, isFocused, isMapReady, clearFocusTarget]);
 
   useEffect(() => {
     if (cameraCenter[0] === 10.0 && cameraCenter[1] === 51.0) return; // Default
@@ -217,22 +256,25 @@ export default function KarteScreen() {
     userLocationRef.current = cameraCenter;
 
     if (gpsAppliedRef.current || hasExplicitCameraTargetRef.current) return;
-    gpsAppliedRef.current = true;
+    if (!isMapReady) return;
     // Nie nadpisuj widoku, jeśli użytkownik właśnie przeszedł z karty pinu
     // („Pin auf der Karte öffnen” lub aktywna trasa)
     if (useRouteStore.getState().focusTarget || useRouteStore.getState().routeResult) {
+      gpsAppliedRef.current = true;
       return;
     }
+    gpsAppliedRef.current = true;
     cameraRef.current?.setCamera({
       centerCoordinate: cameraCenter,
       zoomLevel: cameraZoom,
       animationMode: "flyTo",
       animationDuration: 800,
     });
-  }, [cameraCenter, cameraZoom]);
+  }, [cameraCenter, cameraZoom, isMapReady]);
 
   // Dopasowanie kamery (fitBounds) do wyznaczonej trasy Mapbox
   useEffect(() => {
+    if (!isFocused || !isMapReady) return;
     if (!routeResult || !routeOrigin || !routeDestination?.location?.coordinates) return;
     hasExplicitCameraTargetRef.current = true;
     gpsAppliedRef.current = true;
@@ -256,8 +298,16 @@ export default function KarteScreen() {
       extend(c);
     }
 
-    cameraRef.current?.fitBounds([maxLon, maxLat], [minLon, minLat], [140, 48, 160, 48], 750);
-  }, [routeResult, routeOrigin, routeDestination, fitBoundsTrigger]);
+    const ne: [number, number] = [maxLon, maxLat];
+    const sw: [number, number] = [minLon, minLat];
+    cameraRef.current?.fitBounds(ne, sw, [140, 48, 160, 48], 750);
+
+    const timer = setTimeout(() => {
+      cameraRef.current?.fitBounds(ne, sw, [140, 48, 160, 48], 750);
+    }, 90);
+
+    return () => clearTimeout(timer);
+  }, [isFocused, isMapReady, routeResult, routeOrigin, routeDestination, fitBoundsTrigger]);
 
   // GeoJSON dla linii trasy oraz punktu startowego (START)
   const routeGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
@@ -301,6 +351,34 @@ export default function KarteScreen() {
           );
     return placesToGeoJSON(filtered, lockedIds);
   }, [allPlaces, lockedIds, selectedCategoryId]);
+
+  // GeoJSON dla aktualnie wybranego / odkrywanego pinu (podświetlenie + etykieta na wierzchu mapy)
+  const selectedPinGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
+    if (selectedPlaceId === null) return EMPTY_POINT_GEOJSON;
+    const selectedPlace = allPlaces.find((p) => p.id === selectedPlaceId);
+    if (!selectedPlace?.location?.coordinates) return EMPTY_POINT_GEOJSON;
+    const cat = selectedPlace.Kategorie?.[0]?.Kategorie_id ?? null;
+    const catId = cat?.id ?? null;
+    return {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: selectedPlace.location.coordinates,
+          },
+          properties: {
+            placeId: selectedPlace.id,
+            placeName: selectedPlace.Name,
+            locked: lockedIds.has(selectedPlace.id) ? 1 : 0,
+            categoryColor: categoryColorFor(cat),
+            categoryIcon: iconName(catId),
+          },
+        },
+      ],
+    };
+  }, [allPlaces, lockedIds, selectedPlaceId]);
 
   const handleSelectGeo = useCallback(
     (item: {
@@ -354,19 +432,30 @@ export default function KarteScreen() {
       }
 
       // Pojedynczy pin — w trybie wyboru punktu startowego trasy ustawia ten pin jako Start;
-      // w normalnym trybie otwiera szczegóły (lub paywall, gdy zablokowany)
+      // w normalnym trybie centruje mapę na tym pinie, zaznacza go wizualnie i otwiera szczegóły
       const placeId = feature.properties.placeId as number;
       const isLocked = feature.properties.locked === 1;
       if (!placeId) return;
 
+      const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+
       if (useRouteStore.getState().status === "picking-on-map") {
         const clickedPlace = usePlacesStore.getState().placesById.get(placeId);
-        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
         void pickOriginOnMap(coords, clickedPlace);
         return;
       }
 
       searchRef.current?.hideSuggestions();
+      setSelectedPlaceId(placeId);
+      hasExplicitCameraTargetRef.current = true;
+
+      if (Array.isArray(coords) && coords.length >= 2) {
+        cameraRef.current?.setCamera({
+          centerCoordinate: coords,
+          animationMode: "easeTo",
+          animationDuration: 450,
+        });
+      }
 
       if (isLocked) {
         router.navigate("/custom-paywall");
@@ -375,11 +464,12 @@ export default function KarteScreen() {
 
       router.navigate(`/place/${placeId}`);
     },
-    [router, cameraZoom, pickOriginOnMap],
+    [router, cameraZoom, pickOriginOnMap, setSelectedPlaceId],
   );
 
   const handleBlankMapPress = useCallback(
     (feature: GeoJSON.Feature) => {
+      searchRef.current?.hideSuggestions();
       if (useRouteStore.getState().status !== "picking-on-map") return;
       if (feature?.geometry?.type === "Point") {
         const coords = feature.geometry.coordinates as [number, number];
@@ -420,14 +510,12 @@ export default function KarteScreen() {
             styleURL={Mapbox.StyleURL.Street}
             localizeLabels={{ locale: "de" }}
             compassEnabled
+            onDidFinishLoadingMap={() => setIsMapReady(true)}
             onPress={handleBlankMapPress}
           >
             <Camera
               ref={cameraRef}
-              defaultSettings={{
-                centerCoordinate: cameraCenter,
-                zoomLevel: cameraZoom,
-              }}
+              defaultSettings={initialCameraSettings}
               animationMode="flyTo"
               animationDuration={800}
             />
@@ -482,6 +570,7 @@ export default function KarteScreen() {
             <ShapeSource
               ref={shapeSourceRef}
               id="places"
+              promoteId="placeId"
               shape={geoJSON}
               cluster
               clusterRadius={50}
@@ -544,61 +633,106 @@ export default function KarteScreen() {
               />
             </ShapeSource>
 
-            {/* Puck (natywny GPU renderer) MUSI byc ostatnim dzieckiem MapView,
-                zeby byl rysowany NA WIERZCHU pinow. W Mapbox React Native
-                kolejnosc JSX = kolejnosc warstw.
-                Renderujemy LocationPuck i UserLocation wyłącznie wtedy, gdy ekran
-                Karte ma fokus (isFocused) — oszczędza to baterię, GPS i kompas,
-                gdy użytkownik przegląda Liste, Tour, Profil lub szczegóły audiopinu. */}
-            {isFocused && (
-              <>
-                <LocationPuck puckBearingEnabled puckBearing="heading" visible />
-                <UserLocation
-                  visible={false}
-                  onUpdate={(loc) => {
-                    userLocationRef.current = [loc.coords.longitude, loc.coords.latitude];
-                    if (!puckSeenRef.current) {
-                      puckSeenRef.current = true;
-                      Sentry.addBreadcrumb({
-                        category: "gps",
-                        level: "info",
-                        message: "UserLocation puck first fix",
-                        data: { lon: loc.coords.longitude, lat: loc.coords.latitude },
-                      });
-                    }
-                  }}
-                />
-              </>
+            {/* Aktualnie wybrany / odkrywany pin — wyróżniony pierścieniem FairFührer,
+                powiększoną ikoną kategorii (jak `places-selected` na Webie) oraz etykietą z nazwą */}
+            <ShapeSource
+              id="fairfuehrer-selected-pin"
+              shape={selectedPinGeoJSON}
+              onPress={handleMapPress}
+            >
+              <CircleLayer
+                id="selected-pin-outer-ring"
+                style={{
+                  circleRadius: 23,
+                  circleColor: "rgba(252, 108, 20, 0.24)",
+                  circleStrokeWidth: 2.5,
+                  circleStrokeColor: "#fc6c14",
+                }}
+              />
+              <CircleLayer
+                id="selected-pin-inner-halo"
+                style={{
+                  circleRadius: 17.5,
+                  circleColor: "#ffffff",
+                  circleStrokeWidth: 2.5,
+                  circleStrokeColor: "#18222f",
+                }}
+              />
+              <SymbolLayer
+                id="selected-pin-symbol"
+                style={{
+                  iconImage: ["get", "categoryIcon"],
+                  iconSize: 1.32,
+                  iconAllowOverlap: true,
+                  iconIgnorePlacement: true,
+                  textField: ["get", "placeName"],
+                  textFont: ["DIN Offc Pro Bold", "Arial Unicode MS Bold"],
+                  textSize: 13,
+                  textOffset: [0, 1.9],
+                  textAnchor: "top",
+                  textMaxWidth: 14,
+                  textColor: "#18222f",
+                  textHaloColor: "#ffffff",
+                  textHaloWidth: 2.2,
+                  textAllowOverlap: true,
+                  textOptional: true,
+                }}
+              />
+            </ShapeSource>
+
+            {/* Natywny LocationPuck (GPU) montujemy dopiero po potwierdzeniu uprawnień
+                lokalizacji (hasLocationPermission) i nie odmontowujemy go przy utracie
+                fokusu zakładki — zamiast tego sterujemy jego widocznością przez `visible={isFocused}`.
+                Zapobiega to wyścigom `RNMBXNativeUserLocation` na Androidzie przy pierwszym
+                oknie uprawnień oraz przy przejściach Liste -> Audiopin -> Karte. */}
+            {hasLocationPermission && (
+              <LocationPuck
+                puckBearingEnabled
+                puckBearing="heading"
+                pulsing="default"
+                visible={isFocused}
+              />
             )}
           </MapView>
         )}
       </View>
 
       {/* Przycisk powrotu do lokalizacji użytkownika (⊕). Priorytet:
-          1. userLocationRef (aktualizowany przez UserLocation.onUpdate oraz useTabGpsCenter)
-          2. getLastKnownPositionAsync (błyskawiczny odczyt z cache systemowego Android/iOS)
-          3. Fallback: getCurrentPositionAsync z wizualnym spinnerem i obsługą błędów/uprawnień */}
+          1. Gdy uprawnienie jest już przyznane: getLastKnownPositionAsync (0 ms odczyt z cache
+             systemowego aktualizowanego na bieżąco przez natywny silnik LocationPuck) lub userLocationRef
+          2. Gdy brak uprawnienia lub pozycji w cache: prośba o uprawnienie + getCurrentPositionAsync
+             ze spinnerem i czytelnym komunikatem */}
       <TouchableOpacity
         style={styles.gpsBtn}
         disabled={isLocatingUser}
         onPress={async () => {
           void Haptics.selectionAsync().catch(() => {});
 
-          if (userLocationRef.current) {
-            cameraRef.current?.setCamera({
-              centerCoordinate: userLocationRef.current,
-              zoomLevel: 13,
-              animationMode: "flyTo",
-              animationDuration: 600,
-            });
-            return;
+          if (hasLocationPermission) {
+            const recentPos = await Location.getLastKnownPositionAsync({
+              maxAge: 60_000,
+            }).catch(() => null);
+            const targetCoords: [number, number] | null = recentPos
+              ? [recentPos.coords.longitude, recentPos.coords.latitude]
+              : userLocationRef.current;
+
+            if (targetCoords) {
+              userLocationRef.current = targetCoords;
+              cameraRef.current?.setCamera({
+                centerCoordinate: targetCoords,
+                zoomLevel: 13,
+                animationMode: "flyTo",
+                animationDuration: 600,
+              });
+              return;
+            }
           }
 
           setIsLocatingUser(true);
           Sentry.addBreadcrumb({
             category: "gps",
             level: "info",
-            message: "gps-button fallback (puck ref empty)",
+            message: "gps-button fallback (requesting fresh fix)",
           });
 
           try {
@@ -627,6 +761,9 @@ export default function KarteScreen() {
               );
               return;
             }
+
+            // Powiadom hook, aby natychmiast zamontować <LocationPuck> bez potrzeby przeładowania
+            markPermissionGranted();
 
             // 1) Najpierw spróbuj ostatniej znanej pozycji z systemu (0 ms czekania).
             //    Jeśli jest świeża, od razu przesuwamy kamerę, nie blokując użytkownika.

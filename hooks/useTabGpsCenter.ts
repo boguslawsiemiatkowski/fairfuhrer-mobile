@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
 import { useIsFocused } from "expo-router";
@@ -10,9 +10,12 @@ const DEFAULT_ZOOM = 5;
 export function useTabGpsCenter(dataReady: boolean): {
   center: [number, number];
   zoom: number;
+  hasPermission: boolean;
+  markPermissionGranted: () => void;
 } {
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [hasPermission, setHasPermission] = useState(false);
   const isFocused = useIsFocused();
   // Zapala sie dopiero po ustawieniu realnej pozycji. Wczesniej byl ustawiany
   // od razu na wejsciu do efektu, wiec jedna odmowa uprawnien albo jeden
@@ -24,6 +27,10 @@ export function useTabGpsCenter(dataReady: boolean): {
   // Nieudany odczyt raportujemy do Sentry raz na sesje. Bez tego ponawianie
   // zamienialoby jedno zepsute GPS w strumien identycznych zdarzen.
   const reportedRef = useRef(false);
+
+  const markPermissionGranted = useCallback(() => {
+    setHasPermission(true);
+  }, []);
 
   useEffect(() => {
     if (!dataReady || !isFocused || doneRef.current || inFlightRef.current) return;
@@ -54,6 +61,10 @@ export function useTabGpsCenter(dataReady: boolean): {
           return;
         }
 
+        if (mounted) {
+          setHasPermission(true);
+        }
+
         // Pozycja z cache jest natychmiastowa i w praktyce ratuje sytuacje,
         // gdy fix GPS sie nie lapie. Dokladniejszy odczyt i tak ja nadpisze.
         const lastPos = await Location.getLastKnownPositionAsync().catch(() => null);
@@ -79,5 +90,5 @@ export function useTabGpsCenter(dataReady: boolean): {
     };
   }, [dataReady, isFocused]);
 
-  return { center, zoom };
+  return { center, zoom, hasPermission, markPermissionGranted };
 }

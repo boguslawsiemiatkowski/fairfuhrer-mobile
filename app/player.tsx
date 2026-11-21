@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  StatusBar,
   GestureResponderEvent,
   LayoutChangeEvent,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -157,7 +157,7 @@ export default function PlayerScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar style="light" animated />
       <SafeAreaView style={s.container} edges={["top", "bottom"]}>
         {/* ── Header (przyklejony na górze, duże przyciski minimalizowania i zamykania) ── */}
         <View style={s.header}>

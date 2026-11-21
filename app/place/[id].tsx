@@ -7,9 +7,10 @@ import {
   StyleSheet,
   Dimensions,
   useWindowDimensions,
-  StatusBar,
   BackHandler,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import * as Sentry from "@sentry/react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -313,7 +314,6 @@ function GalleryViewer({ images, initialIndex, onClose }: GalleryViewerProps) {
   return (
     <GestureDetector gesture={panGesture}>
       <View style={galleryStyles.overlay}>
-        <StatusBar hidden />
         {/* Tapnięcie w przyciemnioną przestrzeń wokół zdjęcia zamyka galerię */}
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
@@ -512,6 +512,21 @@ export default function PlaceScreen() {
     router.replace("/custom-paywall");
   }, [isLocked, router]);
 
+  // Sentry Breadcrumb dla konkretnego audiopinu (bez PII) — ułatwia diagnostykę,
+  // bo w React Navigation dynamiczna trasa raportuje się ogólnie jako "place/[id]".
+  useEffect(() => {
+    if (!place || isLocked) return;
+    Sentry.addBreadcrumb({
+      category: "navigation",
+      level: "info",
+      message: `Viewed place: ${place.Name}`,
+      data: {
+        placeId: place.id,
+        stadt: place.Stadt ?? null,
+      },
+    });
+  }, [place, isLocked]);
+
   // Pobieranie opisu on-demand (jak w panelu bocznym na Webie) — gdy Vollbeschreibung
   // nie przyszło jeszcze w głównym katalogu, dociągamy je w tle, pokazując elegancki szkielet.
   const rawDescription = place?.Vollbeschreibung;
@@ -595,7 +610,7 @@ export default function PlaceScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar style="dark" hidden={galleryIndex !== null} animated />
 
       {/* ── Przycisk zamknięcia w stylu Studio (prawy górny róg) ── */}
       <TouchableOpacity

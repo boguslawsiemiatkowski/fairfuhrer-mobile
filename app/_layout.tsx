@@ -195,7 +195,7 @@ function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <DrawerProvider>
-          <StatusBar style="auto" />
+          <StatusBar style="dark" animated />
           <RootLayoutNav />
         </DrawerProvider>
       </AuthProvider>

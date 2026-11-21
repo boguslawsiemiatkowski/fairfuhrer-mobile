@@ -355,11 +355,11 @@ export default function KarteScreen() {
       searchRef.current?.hideSuggestions();
 
       if (isLocked) {
-        router.push("/custom-paywall");
+        router.navigate("/custom-paywall");
         return;
       }
 
-      router.push(`/place/${placeId}`);
+      router.navigate(`/place/${placeId}`);
     },
     [router, cameraZoom, pickOriginOnMap],
   );
@@ -378,7 +378,7 @@ export default function KarteScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <HomeHeader einstellungen={einstellungen} />
 
       {/* Offline-Hinweis — sichtbar, wenn gespeicherte Daten verwendet werden */}

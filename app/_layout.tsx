@@ -98,7 +98,12 @@ function RootLayoutNav() {
 
   return (
     <GlobalAudioPlayer>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "#f8f8ff" },
+        }}
+      >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="place/[id]"
@@ -107,6 +112,7 @@ function RootLayoutNav() {
             animation: "slide_from_bottom",
             gestureEnabled: true,
             gestureDirection: "vertical",
+            sheetGrabberVisible: true,
           }}
         />
         <Stack.Screen
@@ -116,6 +122,7 @@ function RootLayoutNav() {
             animation: "slide_from_bottom",
             gestureEnabled: true,
             gestureDirection: "vertical",
+            sheetGrabberVisible: true,
           }}
         />
         <Stack.Screen
@@ -133,17 +140,23 @@ function RootLayoutNav() {
             animation: "slide_from_bottom",
             gestureEnabled: true,
             gestureDirection: "vertical",
+            sheetGrabberVisible: true,
           }}
         />
         <Stack.Screen
           name="(drawer)"
-          options={{ presentation: "card", animation: "slide_from_right" }}
+          options={{
+            presentation: "card",
+            animation: "slide_from_right",
+            fullScreenGestureEnabled: true,
+          }}
         />
         <Stack.Screen
           name="player"
           options={{
             presentation: "modal",
             animation: "slide_from_bottom",
+            contentStyle: { backgroundColor: "#18222F" },
             // Wyłączamy natywne zamykanie modala gestem pionowym na całym ekranie,
             // aby użytkownik mógł swobodnie przewijać zawartość odtwarzacza i playlistę
             // w górę i w dół. Do minimalizowania i zamykania służą duże przyciski w nagłówku.

@@ -11,6 +11,9 @@
       "android": {
         "image": "latest"
       },
+      "ios": {
+        "image": "latest"
+      },
       "node": "22.14.0"
     },
     "preview": {
@@ -19,7 +22,10 @@
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "ios": {
+        "image": "latest"
+      }
     },
     "production-apk": {
       "extends": "production",

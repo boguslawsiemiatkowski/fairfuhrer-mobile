@@ -246,7 +246,7 @@ export default function ListeScreen() {
   const handleAlleAbspielen = useCallback(() => {
     if (playablePlaces.length === 0) return;
     startPlaylist(playablePlaces, { kind: "aktuelle_liste", label: alleAbspielenLabel });
-    router.push("/player");
+    router.navigate("/player");
   }, [playablePlaces, alleAbspielenLabel, startPlaylist, router]);
 
   const showAlleAbspielenBtn =
@@ -297,7 +297,7 @@ export default function ListeScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <HomeHeader einstellungen={einstellungen} />
         <View style={styles.middleContent}>
           <View style={styles.aboveCards}>
@@ -339,14 +339,14 @@ export default function ListeScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, styles.centered]}>
+      <SafeAreaView style={[styles.container, styles.centered]} edges={["top", "left", "right"]}>
         <Text style={styles.errorText}>{error}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Logo + Menu */}
       <HomeHeader einstellungen={einstellungen} />
 

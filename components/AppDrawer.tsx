@@ -252,10 +252,12 @@ export default function AppDrawer({ visible, onClose }: Props) {
     return () => subscription.remove();
   }, [visible, onClose]);
 
-  // Natywny gest przesunięcia palcem w prawo (swipe-to-close) na wątku UI
+  // Natywny gest przesunięcia palcem w prawo (swipe-to-close) na wątku UI.
+  // W RNGH v3 przekazanie pojedynczej dodatniej liczby `activeOffsetX: 10` oznacza
+  // zakres (-inf, 10), czyli aktywację gestu wyłącznie po przesunięciu o > 10px w prawo!
   const panGesture = usePanGesture({
     enabled: visible,
-    activeOffsetX: [10, 9999],
+    activeOffsetX: 10,
     failOffsetY: [-20, 20],
     onUpdate: (e) => {
       "worklet";
@@ -292,7 +294,7 @@ export default function AppDrawer({ visible, onClose }: Props) {
 
   function navigate(path: string) {
     onClose();
-    setTimeout(() => router.push(path as any), 250);
+    setTimeout(() => router.navigate(path as any), 250);
   }
 
   return (

@@ -26,7 +26,7 @@ function AccountScreen() {
   const [activeSection, setActiveSection] = useState<AccountSection>("profil");
 
   return (
-    <SafeAreaView style={s.container} edges={["top"]}>
+    <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
       {/* Header — minimalna identyfikacja konta: email + plan. Avatar/username
           świadomie pominięte, dopóki nie ma realnych community-features. */}
       <View style={s.accountHeader}>
@@ -128,7 +128,7 @@ export default function ProfilScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
         <View style={s.centerContent}>
           <ActivityIndicator color="#fc6c14" />
         </View>

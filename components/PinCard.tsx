@@ -45,10 +45,10 @@ export const PinCard = memo(function PinCard({ placeId }: { placeId: number }) {
     if (isLocked) {
       // Direkt zum Paywall — auch ohne Konto. Login wird erst nach
       // Plan-Auswahl im Paywall verlangt.
-      router.push("/custom-paywall");
+      router.navigate("/custom-paywall");
       return;
     }
-    router.push(`/place/${placeId}`);
+    router.navigate(`/place/${placeId}`);
   }, [isLocked, placeId, router]);
 
   return (

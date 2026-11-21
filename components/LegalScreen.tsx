@@ -102,7 +102,16 @@ export default function LegalScreen({ title, collection, mode = "singleton" }: P
   }, [collection, mode]);
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        s.container,
+        {
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()} hitSlop={8}>

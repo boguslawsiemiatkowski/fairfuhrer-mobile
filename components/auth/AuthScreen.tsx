@@ -9,9 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ImageBackground,
   Alert,
 } from "react-native";
+import { Image } from "expo-image";
 import { restoreAndCheckPro } from "@/lib/revenuecat";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -300,7 +300,7 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
 
   if (registerSuccess) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
         <View style={s.centerContent}>
           <Text style={s.formTitle}>{t.brand_title}</Text>
           <Text style={s.successTitle}>{t.reg_success_title}</Text>
@@ -315,17 +315,18 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
 
   if (view === "welcome") {
     return (
-      <SafeAreaView style={s.container} edges={["top"]}>
+      <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
         <ScrollView
           contentContainerStyle={s.welcomeContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ImageBackground
-            source={require("@/assets/images/fair-fuehrer-guide-hero.jpg")}
-            style={s.welcomeHero}
-            resizeMode="cover"
-          >
+          <View style={s.welcomeHero}>
+            <Image
+              source={require("@/assets/images/fair-fuehrer-guide-hero.jpg")}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+            />
             <LinearGradient
               colors={["rgba(24,23,22,0.35)", "rgba(24,23,22,0.75)"]}
               style={StyleSheet.absoluteFill}
@@ -345,7 +346,7 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
                 <Text style={s.welcomeBtnSecondaryText}>{t.welcome_btn_login}</Text>
               </TouchableOpacity>
             </View>
-          </ImageBackground>
+          </View>
 
           <View style={s.welcomeValueSection}>
             {/* Steht bewusst VOR den Plan-Karten: wer schon bezahlt hat, soll
@@ -381,7 +382,7 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
               button={
                 <TouchableOpacity
                   style={s.welcomeBtnPremium}
-                  onPress={() => router.push("/custom-paywall")}
+                  onPress={() => router.navigate("/custom-paywall")}
                 >
                   <Text style={s.welcomeBtnPremiumText}>{t.welcome_btn_premium}</Text>
                 </TouchableOpacity>
@@ -401,7 +402,7 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
 
   if (view === "forgot") {
     return (
-      <SafeAreaView style={s.container} edges={["top"]}>
+      <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
@@ -471,7 +472,7 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
 
   const isReg = view === "register";
   return (
-    <SafeAreaView style={s.container} edges={["top"]}>
+    <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -558,11 +559,14 @@ export default function AuthScreen({ initialView = "welcome", onBack }: AuthScre
               </View>
               <Text style={s.consentText}>
                 {t.consent_prefix}{" "}
-                <Text style={s.consentLink} onPress={() => router.push("/(drawer)/agb")}>
+                <Text style={s.consentLink} onPress={() => router.navigate("/(drawer)/agb")}>
                   {t.consent_terms_link}
                 </Text>{" "}
                 {t.consent_middle}{" "}
-                <Text style={s.consentLink} onPress={() => router.push("/(drawer)/datenschutz")}>
+                <Text
+                  style={s.consentLink}
+                  onPress={() => router.navigate("/(drawer)/datenschutz")}
+                >
                   {t.consent_privacy_link}
                 </Text>{" "}
                 {t.consent_suffix}
@@ -785,7 +789,7 @@ const s = StyleSheet.create({
   },
   welcomeMenuBtn: {
     position: "absolute",
-    top: 52,
+    top: 16,
     right: 16,
     backgroundColor: "rgba(24,34,47,0.45)",
     borderRadius: 8,

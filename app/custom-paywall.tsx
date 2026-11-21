@@ -6,11 +6,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  ImageBackground,
   Alert,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Purchases, { PurchasesPackage } from "react-native-purchases";
@@ -99,6 +99,7 @@ function formatPerMonth(pkg: PurchasesPackage): string {
 
 export default function PaywallScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, refreshPro } = useAuth();
 
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -223,20 +224,33 @@ export default function PaywallScreen() {
   const selectedPrice = selected?.product.priceString ?? "";
 
   return (
-    <SafeAreaView style={s.container} edges={["top", "bottom"]}>
+    <View
+      style={[
+        s.container,
+        {
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <ScrollView
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* ── Hero ── */}
-        <ImageBackground source={HERO_IMAGE} style={s.hero} resizeMode="cover">
+        {/* ── Hero (edge-to-edge na górze, bez marnowania przestrzeni nad zdjęciem) ── */}
+        <View style={[s.hero, { paddingTop: Math.max(insets.top, 16) + 48 }]}>
+          <Image source={HERO_IMAGE} style={StyleSheet.absoluteFill} contentFit="cover" />
           <LinearGradient
             colors={["rgba(24,23,22,0.2)", "rgba(24,23,22,0.85)"]}
             style={StyleSheet.absoluteFill}
           />
 
-          <TouchableOpacity style={s.closeBtn} onPress={() => router.back()} hitSlop={12}>
+          <TouchableOpacity
+            style={[s.closeBtn, { top: Math.max(insets.top, 12) + 8 }]}
+            onPress={() => router.back()}
+            hitSlop={12}
+          >
             <Text style={s.closeBtnText}>✕</Text>
           </TouchableOpacity>
 
@@ -245,7 +259,7 @@ export default function PaywallScreen() {
             <Text style={s.heroHeadline}>{t.hero_headline}</Text>
             <Text style={s.heroSubtitle}>{t.hero_subtitle}</Text>
           </View>
-        </ImageBackground>
+        </View>
 
         {/* ── Features ── */}
         <View style={s.featuresSection}>
@@ -261,9 +275,7 @@ export default function PaywallScreen() {
         <View style={s.benefitsSection}>
           <AccountBenefitsCard
             onCtaPress={() => {
-              router.dismissTo?.("/(tabs)/profil");
-              // Fallback für ältere expo-router Versionen ohne dismissTo:
-              router.replace("/(tabs)/profil");
+              router.dismissTo("/(tabs)/profil");
             }}
           />
         </View>
@@ -352,18 +364,18 @@ export default function PaywallScreen() {
               und kündigen — eine Erstattung des laufenden Zeitraums ist nicht möglich.
             </Text>
             <View style={s.legalLinks}>
-              <Text style={s.legalLink} onPress={() => router.push("/(drawer)/agb")}>
+              <Text style={s.legalLink} onPress={() => router.navigate("/(drawer)/agb")}>
                 {t.legal_link_terms}
               </Text>
               <Text style={s.legalSep}> · </Text>
-              <Text style={s.legalLink} onPress={() => router.push("/(drawer)/datenschutz")}>
+              <Text style={s.legalLink} onPress={() => router.navigate("/(drawer)/datenschutz")}>
                 {t.legal_link_privacy}
               </Text>
             </View>
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

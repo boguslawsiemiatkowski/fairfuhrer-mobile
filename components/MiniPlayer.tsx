@@ -17,6 +17,11 @@ import { getMainImageUrl } from "@/lib/mediaUrls";
 const TAB_BAR_BASE_HEIGHT = 60;
 const TAB_BAR_MIN_BOTTOM_PADDING = 16;
 
+// Stała wysokość paska MiniPlayera (44px miniatura + 2×8px paddingVertical + 1px borderTop).
+// Eksportowana do app/(tabs)/_layout.tsx, gdzie `sceneStyle` dodaje `paddingBottom: MINI_PLAYER_HEIGHT`,
+// aby MiniPlayer nigdy nie zasłaniał dolnego paska kategorii (`KategorieBar`) na Liste i Karte.
+export const MINI_PLAYER_HEIGHT = 61;
+
 // ─── Ikony (spójne z AudioPlayer.tsx) ───────────────────────────────────────
 
 function PlayIcon() {
@@ -100,7 +105,7 @@ export default function MiniPlayer() {
           ...(Platform.OS === "android" ? { elevation: 8 } : {}),
         },
       ]}
-      onPress={() => router.push("/player")}
+      onPress={() => router.navigate("/player")}
     >
       {imageUrl ? (
         <Image
@@ -151,10 +156,12 @@ export default function MiniPlayer() {
 
 const styles = StyleSheet.create({
   container: {
-    // Position absolute — nad tab-barem, nie wypycha go
+    // Position absolute — nad tab-barem, a dzięki sceneStyle.paddingBottom w (tabs)/_layout.tsx
+    // nie zasłania KategorieBar ani treści zakładek.
     position: "absolute",
     left: 0,
     right: 0,
+    height: MINI_PLAYER_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#18222F",

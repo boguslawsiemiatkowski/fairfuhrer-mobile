@@ -12,11 +12,11 @@ export default function PurchaseSuccessScreen() {
     // ausgerechnet hier FAIRFÜHRER+ bewerben würde.
     // Nach erfolgreicher Anmeldung mergt RevenueCat den anonymen Kauf
     // automatisch mit der neuen Supabase-user.id (Purchases.logIn).
-    router.replace({ pathname: "/(tabs)/profil", params: { register: "1" } });
+    router.dismissTo({ pathname: "/(tabs)/profil", params: { register: "1" } });
   };
 
   const handleLater = () => {
-    router.replace("/(tabs)");
+    router.dismissTo("/(tabs)");
   };
 
   return (

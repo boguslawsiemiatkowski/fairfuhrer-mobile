@@ -33,6 +33,7 @@ interface PlaylistState {
 interface PlaylistActions {
   startPlaylist: (queue: DirectusOrte[], context: PlaylistContext) => void;
   stop: () => void;
+  pause: () => void;
   togglePlay: () => void;
   next: () => void;
   previous: () => void;
@@ -59,6 +60,12 @@ export const usePlaylistStore = create<PlaylistState & PlaylistActions>((set, ge
 
   stop: () => {
     set({ queue: [], currentIndex: 0, context: null, isPlaying: false });
+  },
+
+  pause: () => {
+    if (get().isPlaying) {
+      set({ isPlaying: false });
+    }
   },
 
   togglePlay: () => {

@@ -10,6 +10,7 @@ import {
 import Svg, { Polygon, Rect, Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from "expo-audio";
+import { usePlaylistStore } from "@/stores/playlistStore";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -213,6 +214,9 @@ function AudioPlayerMounted({ src }: AudioPlayerProps) {
     if (isPlaying) {
       player.pause();
     } else {
+      // Jeśli w tle grała globalna playlista Tour, pauzujemy ją, aby dwa strumienie audio
+      // nie nakładały się na siebie jednocześnie.
+      usePlaylistStore.getState().pause();
       player.play();
     }
   }, [isPlaying, player]);

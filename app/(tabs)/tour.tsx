@@ -154,7 +154,7 @@ export default function TourScreen() {
         return;
       }
       startPlaylist(queue, { kind: "umgebung" });
-      router.push("/player");
+      router.navigate("/player");
     } catch {
       Alert.alert("Fehler", "Standort konnte nicht ermittelt werden.");
     } finally {
@@ -168,7 +168,7 @@ export default function TourScreen() {
       const queue = playablePlaces.filter((p) => p.Stadt === stadt);
       if (queue.length === 0) return;
       startPlaylist(queue, { kind: "stadt", stadt });
-      router.push("/player");
+      router.navigate("/player");
     },
     [playablePlaces, startPlaylist, router],
   );
@@ -181,21 +181,21 @@ export default function TourScreen() {
       );
       if (queue.length === 0) return;
       startPlaylist(queue, { kind: "kategorie", kategorieId, kategorieName });
-      router.push("/player");
+      router.navigate("/player");
     },
     [playablePlaces, startPlaylist, router],
   );
 
   if (status === "loading" || status === "idle") {
     return (
-      <SafeAreaView style={s.center}>
+      <SafeAreaView style={s.center} edges={["top", "left", "right"]}>
         <ActivityIndicator size="large" color="#fc6c14" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={s.container} edges={["top"]}>
+    <SafeAreaView style={s.container} edges={["top", "left", "right"]}>
       {/* Logo + Burger wie auf Liste und Karte — außerhalb der ScrollView,
           damit die Kopfzeile beim Scrollen stehen bleibt und das Menü auf
           allen Tabs an derselben Stelle sitzt. */}

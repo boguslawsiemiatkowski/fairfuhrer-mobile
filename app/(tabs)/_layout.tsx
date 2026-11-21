@@ -1,12 +1,12 @@
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Circle, Polygon } from "react-native-svg";
-
-// Expo Router SDK 58: w `unstable_settings` używamy `anchor: "index"`,
-// a na komponencie `<Tabs>` nie podajemy już wycofanego propa `initialRouteName`.
-export const unstable_settings = {
-  anchor: "index",
-};
+import {
+  usePlaylistStore,
+  selectCurrentPlace,
+  selectIsPlaylistActive,
+} from "@/stores/playlistStore";
+import { MINI_PLAYER_HEIGHT } from "@/components/MiniPlayer";
 
 // Tab-Farben an einer Stelle: Icons und Labels müssen dieselben Werte nutzen,
 // sonst driften sie beim nächsten Design-Update auseinander. Inaktiv ist
@@ -72,8 +72,13 @@ function ProfilIcon({ focused }: { focused: boolean }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const isPlaylistActive = usePlaylistStore(selectIsPlaylistActive);
+  const currentPlace = usePlaylistStore(selectCurrentPlace);
+  const showMiniPlayerSpace = isPlaylistActive && currentPlace !== null;
+
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         // Renderuj wszystkie taby od razu (lazy=false) żeby Tour nie miał
@@ -82,6 +87,12 @@ export default function TabsLayout() {
         // widoczne jako lag. Z lazy=false Tour renderuje się w tle podczas
         // ekranu splash, więc pierwszy tap jest natychmiastowy.
         lazy: false,
+        tabBarHideOnKeyboard: true,
+        tabBarLabelPosition: "below-icon",
+        sceneStyle: {
+          backgroundColor: "#f8f8ff",
+          paddingBottom: showMiniPlayerSpace ? MINI_PLAYER_HEIGHT : 0,
+        },
         tabBarActiveTintColor: TAB_ACTIVE,
         tabBarInactiveTintColor: TAB_INACTIVE,
         tabBarStyle: {

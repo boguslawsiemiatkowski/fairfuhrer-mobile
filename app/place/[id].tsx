@@ -8,6 +8,7 @@ import {
   Dimensions,
   useWindowDimensions,
   BackHandler,
+  ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as Sentry from "@sentry/react-native";
@@ -500,6 +501,7 @@ export default function PlaceScreen() {
   const placeIdNum = Number(id);
   const place = usePlacesStore((s) => s.placesById.get(placeIdNum));
   const allPlaces = usePlacesStore((s) => s.places);
+  const storeStatus = usePlacesStore((s) => s.status);
   const lockedSightsIds = usePlacesStore((s) => s.lockedSightsIds);
   const fetchPlaceDescription = usePlacesStore((s) => s.fetchPlaceDescription);
   const isLocked = !isPro && lockedSightsIds.has(placeIdNum);
@@ -579,6 +581,15 @@ export default function PlaceScreen() {
   }, [place, allPlaces, isPro, lockedSightsIds]);
 
   if (!place) {
+    // Gdy użytkownik wejdzie z deep linka (np. fairfuehrer://place/123) zanim katalog
+    // zdąży się załadować, pokazujemy stan ładowania zamiast fałszywego "Ort nicht gefunden."
+    if (storeStatus === "loading" || storeStatus === "idle") {
+      return (
+        <View style={styles.notFound}>
+          <ActivityIndicator size="large" color="#fc6c14" />
+        </View>
+      );
+    }
     return (
       <View style={styles.notFound}>
         <Text style={styles.notFoundText}>Ort nicht gefunden.</Text>
@@ -840,8 +851,7 @@ export default function PlaceScreen() {
                 firstCategory={firstCategory}
                 headerColor={headerColor}
                 onOpenOnMap={() => {
-                  router.dismissTo?.("/(tabs)/karte");
-                  router.replace("/(tabs)/karte");
+                  router.dismissTo("/(tabs)/karte");
                 }}
               />
             </View>

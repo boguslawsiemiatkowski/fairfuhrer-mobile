@@ -27,7 +27,7 @@ import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import * as Sentry from "@sentry/react-native";
 import { useTabGpsCenter } from "@/hooks/useTabGpsCenter";
-import { withPositionTimeout } from "@/lib/location";
+import { withPositionTimeout, locationErrorLevel } from "@/lib/location";
 import { usePlacesStore } from "@/stores/placesStore";
 import { useRouteStore } from "@/stores/routeStore";
 import { useAuth } from "@/context/AuthContext";
@@ -799,7 +799,10 @@ export default function KarteScreen() {
               animationDuration: 600,
             });
           } catch (e) {
-            Sentry.captureException(e, { tags: { feature: "gps-button" } });
+            Sentry.captureException(e, {
+              level: locationErrorLevel(e),
+              tags: { feature: "gps-button" },
+            });
             Alert.alert(
               "Standort nicht verfügbar",
               "Dein aktueller GPS-Standort konnte nicht ermittelt werden. Bitte prüfe, ob die Ortungsdienste aktiviert sind.",

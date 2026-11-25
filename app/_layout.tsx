@@ -32,6 +32,26 @@ const navigationIntegration = Sentry.reactNavigationIntegration({
 Sentry.init({
   dsn: "https://56408b4e34df2ce6230499434808286c@o4511537387339776.ingest.de.sentry.io/4511537588338768",
 
+  // Nichts aus dem Dev-Client melden.
+  //
+  // Vorher landeten eigene Testläufe neben echten Nutzerfehlern in derselben
+  // Liste: beim Durchsehen am 2026-11-25 waren zwei von vier offenen Issues
+  // gar keine Nutzerfehler, sondern Ereignisse vom Entwicklungsgerät —
+  // darunter ein Absturz, der nur den Dev-Launcher betrifft und in einem
+  // Release-Build nicht vorkommen kann.
+  //
+  // `__DEV__` statt `process.env.NODE_ENV`: NODE_ENV existiert in React Native
+  // zur Laufzeit nicht. `__DEV__` ist das Gegenstück, das Metro beim Bündeln
+  // fest einsetzt — true im Dev-Client, false in jedem kompilierten Build.
+  // Auch EAS-Profile taugen hier nicht als Unterscheidung: `production-apk`
+  // wird ebenfalls intern verteilt.
+  enabled: !__DEV__,
+
+  // Explizit gesetzt, damit in Sentry nach Umgebung gefiltert werden kann.
+  // Bleibt bei `development` nur deshalb erhalten, weil `enabled: false`
+  // ohnehin nichts sendet — so steht beides nicht im Widerspruch.
+  environment: __DEV__ ? "development" : "production",
+
   // Keine PII an Sentry senden (keine IP, kein user.id/email, keine Cookies).
   // Erforderlich für die Datenschutz-Deklarationen im App Store und Google Play.
   sendDefaultPii: false,

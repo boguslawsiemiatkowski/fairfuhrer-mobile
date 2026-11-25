@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
 import { useIsFocused } from "expo-router";
-import { withPositionTimeout } from "@/lib/location";
+import { withPositionTimeout, locationErrorLevel } from "@/lib/location";
 
 const DEFAULT_CENTER: [number, number] = [10.0, 51.0];
 const DEFAULT_ZOOM = 5;
@@ -78,7 +78,10 @@ export function useTabGpsCenter(dataReady: boolean): {
         // Zostaje ostatnie znane centrum (albo domyslne) — logujemy powod.
         if (!reportedRef.current) {
           reportedRef.current = true;
-          Sentry.captureException(e, { tags: { feature: "gps-tab-center" } });
+          Sentry.captureException(e, {
+            level: locationErrorLevel(e),
+            tags: { feature: "gps-tab-center" },
+          });
         }
       } finally {
         inFlightRef.current = false;

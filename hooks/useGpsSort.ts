@@ -3,7 +3,7 @@ import * as Location from "expo-location";
 import * as Sentry from "@sentry/react-native";
 import { useIsFocused } from "expo-router/react-navigation";
 import { supabase } from "@/lib/supabase";
-import { withPositionTimeout } from "@/lib/location";
+import { withPositionTimeout, locationErrorLevel } from "@/lib/location";
 
 /**
  * - idle:     noch nichts versucht
@@ -95,7 +95,10 @@ export function useGpsSort(dataReady: boolean): {
       if (!doneRef.current && mountedRef.current) setStatus("error");
       if (!reportedRef.current) {
         reportedRef.current = true;
-        Sentry.captureException(e, { tags: { feature: "gps-sort" } });
+        Sentry.captureException(e, {
+          level: locationErrorLevel(e),
+          tags: { feature: "gps-sort" },
+        });
       }
     } finally {
       inFlightRef.current = false;

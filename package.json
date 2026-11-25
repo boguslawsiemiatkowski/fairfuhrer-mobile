@@ -8,7 +8,8 @@
     "ios": "doppler run -- expo start --ios",
     "web": "doppler run -- expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
+    "typecheck:tsc": "tsc --noEmit",
     "doctor": "npx --yes expo-doctor"
   },
   "dependencies": {
@@ -17,14 +18,12 @@
     "@expo-google-fonts/fira-sans-condensed": "^0.4.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
-    "@react-native-google-signin/google-signin": "^16.1.2",
     "@rnmapbox/maps": "^10.3.18",
     "@sentry/react-native": "~8.28.0",
     "@supabase/supabase-js": "^2.119.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
     "expo": "~58.0.26",
-    "expo-apple-authentication": "~58.0.3",
     "expo-asset": "~58.0.21",
     "expo-audio": "~58.0.12",
     "expo-blur": "~58.0.6",
@@ -63,6 +62,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "babel-preset-expo": "~58.0.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
@@ -73,15 +73,6 @@
     "react-dom": "19.3.0"
   },
   "private": true,
-  "expo": {
-    "autolinking": {
-      "ios": {
-        "exclude": [
-          "@react-native-google-signin/google-signin"
-        ]
-      }
-    }
-  },
   "allowScripts": {
     "sharp@0.35.0": true,
     "@sentry/cli@2.58.4": true,

@@ -41,3 +41,9 @@ yarn-error.*
 /android
 
 .env.local
+
+# Von `eas credentials` heruntergeladene Signaturdaten.
+# credentials.json enthaelt das Passwort zum Verteilungszertifikat,
+# credentials/ das Zertifikat selbst — beides darf nie ins Repo.
+credentials.json
+/credentials/
